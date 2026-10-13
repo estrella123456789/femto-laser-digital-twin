@@ -5,22 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>飛秒雷射微加工多物理場數位雙生 3D 工業虛擬實驗室</title>
   
-  <!-- KaTeX 數學渲染庫 -->
+  <!-- KaTeX 數學公式庫 -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
           onload="renderMathInElement(document.body);"></script>
 
-  <!-- Three.js 核心與軌道控制器 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- Three.js 核心、軌道控制器與電影級後處理管線 (Bloom) -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
 
   <style>
     :root {
-      --bg-dark: #05070d;
-      --panel-bg: rgba(10, 15, 26, 0.96);
-      --card-bg: #121929;
-      --border: #1f2c44;
+      --bg-dark: #040711;
+      --panel-bg: rgba(9, 14, 26, 0.95);
+      --card-bg: #111a2c;
+      --border: #1d2a44;
       --cyan: #38bdf8;
       --orange: #f97316;
       --green: #10b981;
@@ -31,8 +37,8 @@
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: var(--bg-dark); color: var(--text); overflow: hidden; height: 100vh; width: 100vw; display: flex; flex-direction: column; touch-action: none; }
 
-    /* 頂部工作列 */
-    header { height: 50px; background: var(--panel-bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; z-index: 50; }
+    /* 頂部導覽列 */
+    header { height: 48px; background: var(--panel-bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; z-index: 50; }
     .brand-title { font-size: 0.95rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 0.5rem; }
     .badge { background: #0284c7; color: #fff; font-size: 0.65rem; padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; }
     
@@ -42,15 +48,15 @@
     .st-btn { background: var(--card-bg); border: 1px solid var(--border); color: var(--muted); padding: 0.35rem 0.65rem; border-radius: 4px; font-size: 0.72rem; cursor: pointer; white-space: nowrap; transition: 0.2s; }
     .st-btn.active, .st-btn:hover { background: var(--cyan); color: #000; font-weight: 700; border-color: var(--cyan); }
 
-    /* 3D 全螢幕畫布視窗 */
+    /* 3D 渲染視窗 */
     #canvas-container { flex: 1; position: relative; width: 100%; height: 100%; }
 
     /* HUD 操作指引與狀態顯示 */
     .hud-guide { position: absolute; top: 0.75rem; left: 0.75rem; background: rgba(8, 12, 22, 0.92); border: 1px solid var(--border); border-radius: 6px; padding: 0.65rem 0.9rem; font-size: 0.75rem; z-index: 10; pointer-events: none; line-height: 1.5; max-width: 360px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
     .hud-title { color: var(--cyan); font-weight: 700; font-size: 0.82rem; margin-bottom: 0.2rem; }
     
-    /* 機台光學測微調焦手輪懸浮面板 */
-    .focus-panel { position: absolute; top: 6rem; left: 0.75rem; background: var(--panel-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-size: 0.72rem; z-index: 20; width: 230px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+    /* 機台光學測微調焦面板 */
+    .focus-panel { position: absolute; top: 5.8rem; left: 0.75rem; background: var(--panel-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; font-size: 0.72rem; z-index: 20; width: 230px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
     .focus-panel label { display: flex; justify-content: space-between; margin-bottom: 0.3rem; color: var(--muted); }
     .focus-panel input[type=range] { width: 100%; accent-color: var(--orange); height: 24px; cursor: pointer; }
 
@@ -58,7 +64,7 @@
     .probe-tooltip { position: absolute; background: rgba(0, 0, 0, 0.9); border: 1px solid var(--orange); color: #fff; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.72rem; pointer-events: none; z-index: 30; transform: translate(-50%, -120%); display: none; white-space: nowrap; }
 
     /* 底部操作工具列 */
-    .bottom-bar { position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.45rem; background: rgba(10, 15, 26, 0.95); border: 1px solid var(--border); padding: 0.4rem 0.8rem; border-radius: 30px; z-index: 30; max-width: 95vw; overflow-x: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
+    .bottom-bar { position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.45rem; background: rgba(9, 14, 26, 0.95); border: 1px solid var(--border); padding: 0.4rem 0.8rem; border-radius: 30px; z-index: 30; max-width: 95vw; overflow-x: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
     .tool-btn { background: var(--card-bg); border: 1px solid var(--border); color: #fff; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
     .tool-btn.active { background: var(--orange); border-color: var(--orange); color: #000; }
 
@@ -77,7 +83,6 @@
 </head>
 <body>
 
-  <!-- 頂部工作列 -->
   <header>
     <div class="brand-title">
       <span>飛秒雷射微加工數位雙生虛擬工作站</span>
@@ -94,16 +99,14 @@
     </div>
   </header>
 
-  <!-- 3D 渲染區域 -->
   <div id="canvas-container">
-    <!-- HUD 操作指引 -->
     <div class="hud-guide">
       <div class="hud-title" id="hud-title">工位 1：FSMM 飛秒雷射微加工機 (實體層)</div>
       <div id="hud-desc">滑鼠左鍵可 360° 自由環視旋轉、滾輪無級微距推進！使用左側面板連續調整對焦，點擊機台旋鈕微調雷射功率。</div>
       <div style="margin-top:0.35rem; font-weight:700;" id="hud-status">● 焦點狀態：焦平面精準對焦 (聚焦光斑直徑 1.45 µm)</div>
     </div>
 
-    <!-- 實體光學測微調焦面板 -->
+    <!-- 實體光學調焦控制面板 -->
     <div class="focus-panel" id="focusPanel">
       <label>
         <span>物鏡微米調焦手輪 ($Z_f$)</span>
@@ -115,10 +118,8 @@
       </div>
     </div>
 
-    <!-- 測溫探針即時讀數浮標 -->
     <div class="probe-tooltip" id="probeTip">4383.7 °C</div>
 
-    <!-- 底部操作工具列 -->
     <div class="bottom-bar">
       <button class="tool-btn active" id="btn-fire" onclick="toggleFire()">雷射快門開關</button>
       <button class="tool-btn" id="btn-probe" onclick="toggleProbeTool()">測溫探針工具</button>
@@ -126,10 +127,8 @@
       <button class="tool-btn" onclick="triggerAutoTune()">執行閉環最佳化校正</button>
     </div>
 
-    <!-- 側邊抽屜按鈕 -->
     <button class="drawer-btn" onclick="toggleDrawer()">檢視工程報表與 CAE 數據</button>
 
-    <!-- 側邊數據抽屜 -->
     <div class="side-drawer" id="sideDrawer">
       <div class="drawer-title">
         <span>多物理場與 CAE 數位雙生報表</span>
@@ -140,7 +139,6 @@
         工件材料：康寧 EAGLE XG 鹼土硼鋁矽酸鹽玻璃 (厚度 0.5 mm)。
       </div>
 
-      <!-- KPI 雙指標 -->
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
         <div class="kpi-card">
           <div style="font-size:0.65rem; color:var(--muted);">中心峰值溫度 (Step 1)</div>
@@ -154,7 +152,6 @@
         </div>
       </div>
 
-      <!-- 虛實校正數據 -->
       <div class="kpi-card" style="text-align:left; font-size:0.72rem; line-height:1.6;">
         <div style="font-weight:700; color:var(--cyan); margin-bottom:0.2rem;">虛實幾何校準 (Table 4.3 & 4.4)</div>
         <div>實測入口孔徑 $D_{top}$：288.8 µm</div>
@@ -162,7 +159,6 @@
         <div>孔徑幾何誤差：<strong id="side-err" style="color:var(--green)">+0.24% (高度收斂)</strong></div>
       </div>
 
-      <!-- 實體檢驗成績單 -->
       <table class="data-table">
         <thead><tr><th>檢驗項目</th><th>論文實測數值</th><th>判定結果</th></tr></thead>
         <tbody>
@@ -174,7 +170,6 @@
         </tbody>
       </table>
 
-      <!-- 決策預警 -->
       <div id="side-decision" style="background:rgba(16, 185, 129, 0.08); border-left:3px solid var(--green); padding:0.5rem; border-radius:0 4px 4px 0; font-size:0.72rem; line-height:1.5;">
         ✔ <strong>Rankine 準則判定</strong>：孔徑誤差收斂在 1% 內，殘留拉應力受控，建議作為機台量產基準。
       </div>
@@ -183,7 +178,7 @@
 
   <script>
     /* =========================================================
-       1. Three.js 場景、影調與 PBR 渲染管線
+       1. Three.js PBR 渲染管線與高階輝光 Bloom 後處理
        ========================================================= */
     const container = document.getElementById('canvas-container');
     const scene = new THREE.Scene();
@@ -194,7 +189,7 @@
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.25;
+    renderer.toneMappingExposure = 1.35;
     renderer.localClippingEnabled = true;
     container.appendChild(renderer.domElement);
 
@@ -202,25 +197,53 @@
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
 
-    // 剖切平面 (Clipping Plane)
+    // 後處理管線 (UnrealBloom: 激發高溫電漿刺眼光芒)
+    const renderScene = new THREE.RenderPass(scene, camera);
+    const bloomPass = new THREE.UnrealBloomPass(
+      new THREE.Vector2(container.clientWidth, container.clientHeight),
+      1.25, // 輝光強度
+      0.45, // 半徑
+      0.82  // 門檻值 (僅高溫發光體輝光)
+    );
+    const composer = new THREE.EffectComposer(renderer);
+    composer.addPass(renderScene);
+    composer.addPass(bloomPass);
+
+    // 剖切平面
     const clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
 
-    // 工業級多光照佈局
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const keyLight = new THREE.DirectionalLight(0xe0f2fe, 1.4);
+    // 程序化生成工作室 HDR 環境貼圖 (提供真實金屬反光與玻璃高光)
+    function generateStudioEnvironment() {
+      const c = document.createElement('canvas'); c.width = 512; c.height = 256;
+      const ctx = c.getContext('2d');
+      const grad = ctx.createLinearGradient(0, 0, 0, 256);
+      grad.addColorStop(0, '#1e293b'); grad.addColorStop(0.5, '#0f172a'); grad.addColorStop(1, '#020617');
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, 512, 256);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(80, 20, 120, 40); // 模擬上方柔光箱
+      ctx.fillRect(320, 30, 80, 50);
+      const t = new THREE.CanvasTexture(c);
+      t.mapping = THREE.EquirectangularReflectionMapping;
+      return t;
+    }
+    const envMap = generateStudioEnvironment();
+    scene.environment = envMap;
+
+    // 實體多光照佈局
+    scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+    const keyLight = new THREE.DirectionalLight(0xe0f2fe, 1.5);
     keyLight.position.set(40, 80, 50);
     scene.add(keyLight);
-    const fillLight = new THREE.DirectionalLight(0x38bdf8, 0.5);
+    const fillLight = new THREE.DirectionalLight(0x38bdf8, 0.6);
     fillLight.position.set(-40, 40, -30);
     scene.add(fillLight);
 
-    // 地板防震光學孔矩陣紋理生成器
+    // 光學防震麵包板螺孔紋理
     function generateBreadboardTexture() {
-      const c = document.createElement('canvas');
-      c.width = 512; c.height = 512;
+      const c = document.createElement('canvas'); c.width = 512; c.height = 512;
       const ctx = c.getContext('2d');
-      ctx.fillStyle = '#111827'; ctx.fillRect(0, 0, 512, 512);
-      ctx.fillStyle = '#030712';
+      ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, 512, 512);
+      ctx.fillStyle = '#020617';
       for (let x = 16; x < 512; x += 32) {
         for (let y = 16; y < 512; y += 32) {
           ctx.beginPath(); ctx.arc(x, y, 4.5, 0, Math.PI * 2); ctx.fill();
@@ -231,18 +254,18 @@
       t.repeat.set(8, 8);
       return t;
     }
-    const bbMat = new THREE.MeshStandardMaterial({ map: generateBreadboardTexture(), roughness: 0.35, metalness: 0.6 });
+    const bbMat = new THREE.MeshStandardMaterial({ map: generateBreadboardTexture(), roughness: 0.35, metalness: 0.7, envMap: envMap });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(240, 240), bbMat);
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = -12;
     scene.add(floor);
 
     /* =========================================================
-       2. 高細節程序化 3D 儀器設備建模 (Procedural CAD Details)
+       2. 高細節 3D 儀器設備建模 (PBR 機構細節)
        ========================================================= */
     const interactables = [];
 
-    // 程序化繪製安全警示斑馬紋貼圖
+    // 安全警示貼紙貼圖
     function generateWarningSticker() {
       const c = document.createElement('canvas'); c.width = 256; c.height = 64;
       const ctx = c.getContext('2d');
@@ -258,10 +281,9 @@
     }
     const warnMat = new THREE.MeshBasicMaterial({ map: generateWarningSticker() });
 
-    // 通用光學防震實驗桌
     function createWorkbench(x, z) {
       const g = new THREE.Group(); g.position.set(x, -12, z);
-      const top = new THREE.Mesh(new THREE.BoxGeometry(34, 2, 24), new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 }));
+      const top = new THREE.Mesh(new THREE.BoxGeometry(34, 2, 24), new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.85, roughness: 0.2, envMap: envMap }));
       top.position.y = 8; g.add(top);
       for (let dx of [-15, 15]) {
         for (let dz of [-10, 10]) {
@@ -274,41 +296,41 @@
     }
 
     // ---------------------------------------------------------
-    // 【工位 1】：FSMM 飛秒加工機 (雙軌導軌、滾花旋鈕、光學鏡筒)
+    // 【工位 1】：FSMM 飛秒加工機
     // ---------------------------------------------------------
     createWorkbench(-55, 0);
     const fsmmGroup = new THREE.Group(); fsmmGroup.position.set(-55, -2, 0); scene.add(fsmmGroup);
 
-    // 鋼製滑動導軌與三軸步進載台
-    const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.1 });
+    // 雙導軌
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.95, roughness: 0.1 });
     for (let rz of [-4, 4]) {
       const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 22, 16), railMat);
       rail.rotation.z = Math.PI / 2; rail.position.set(0, 0.4, rz); fsmmGroup.add(rail);
     }
-    const stage = new THREE.Mesh(new THREE.BoxGeometry(16, 1.8, 14), new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 }));
+    const stage = new THREE.Mesh(new THREE.BoxGeometry(16, 1.8, 14), new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.75, roughness: 0.25, envMap: envMap }));
     stage.position.set(0, 1.4, 0); fsmmGroup.add(stage);
 
-    // EAGLE XG 玻璃晶圓工件 (0.5 mm 厚度)
+    // EAGLE XG 玻璃晶圓工件
     const glassGeo = new THREE.BoxGeometry(9, 1.6, 9);
     const glassMatP = new THREE.MeshPhysicalMaterial({
       color: 0x38bdf8, transparent: true, opacity: 0.55, roughness: 0.05,
-      transmission: 0.92, ior: 1.51, clippingPlanes: [clipPlane]
+      transmission: 0.92, ior: 1.51, clippingPlanes: [clipPlane], envMap: envMap
     });
     const glassP = new THREE.Mesh(glassGeo, glassMatP);
     glassP.position.set(0, 3.1, 0); glassP.userData = { type: "workpiece" };
     fsmmGroup.add(glassP); interactables.push(glassP);
 
-    // 垂直微米進給物鏡筒
+    // 垂直進給鏡筒
     const lensColumn = new THREE.Group(); lensColumn.position.set(0, 15, 0); fsmmGroup.add(lensColumn);
-    const lensBody = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 3.2, 10, 32), new THREE.MeshStandardMaterial({ color: 0x090e1a, metalness: 0.85, roughness: 0.15 }));
+    const lensBody = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 3.2, 10, 32), new THREE.MeshStandardMaterial({ color: 0x090e1a, metalness: 0.85, roughness: 0.15, envMap: envMap }));
     lensColumn.add(lensBody);
 
-    // 滾花測微調焦手輪
+    // 測微調焦鼓輪
     const focusKnob = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 1.2, 32), new THREE.MeshStandardMaterial({ color: 0xf97316, metalness: 0.6, roughness: 0.3 }));
     focusKnob.rotation.z = Math.PI / 2; focusKnob.position.set(3.4, 0, 0);
     lensColumn.add(focusKnob);
 
-    // 雷射電源箱、功率調諧旋鈕與安全警示條
+    // 電源箱與旋鈕
     const pwrBox = new THREE.Mesh(new THREE.BoxGeometry(8, 8, 9), new THREE.MeshStandardMaterial({ color: 0x090e1a, roughness: 0.5 }));
     pwrBox.position.set(-13, 4, 0); fsmmGroup.add(pwrBox);
     const warnSticker = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), warnMat);
@@ -318,14 +340,14 @@
     pwrKnobMesh.rotation.x = Math.PI / 2; pwrKnobMesh.position.set(-8.9, 4.5, 0);
     pwrKnobMesh.userData = { type: "pwrKnob" }; fsmmGroup.add(pwrKnobMesh); interactables.push(pwrKnobMesh);
 
-    // 聚焦雷射光錐 (受高斯束腰動態縮放)
+    // 高溫電漿發光光錐 (受 Bloom 影響輝光)
     const beamGeo = new THREE.ConeGeometry(2.4, 10, 32, 1, true);
     beamGeo.rotateX(Math.PI);
-    const beamMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
+    const beamMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
     const laserBeam = new THREE.Mesh(beamGeo, beamMat);
     laserBeam.position.set(0, -10, 0); lensColumn.add(laserBeam);
 
-    // 電漿微噴濺動態粒子
+    // 電漿氣化噴濺粒子 (發光材質)
     const pCount = 120;
     const pGeo = new THREE.BufferGeometry();
     const pPos = new Float32Array(pCount * 3);
@@ -335,18 +357,18 @@
       pVels.push({ x: (Math.random()-0.5)*0.5, y: Math.random()*1.4 + 0.3, z: (Math.random()-0.5)*0.5, life: Math.random() });
     }
     pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-    const plasmaParticles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xf97316, size: 0.45, transparent: true, opacity: 0.85 }));
+    const plasmaParticles = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xfba046, size: 0.55, transparent: true, opacity: 0.9 }));
     plasmaParticles.position.set(0, 3.9, 0); fsmmGroup.add(plasmaParticles);
 
     // ---------------------------------------------------------
-    // 【工位 2】：KEYENCE VR-6200 3D 光學輪廓儀
+    // 【工位 2】：KEYENCE VR-6200 輪廓儀
     // ---------------------------------------------------------
-    createBench(-25, 0);
+    createWorkbench(-25, 0);
     const vrGroup = new THREE.Group(); vrGroup.position.set(-25, -2, 0); scene.add(vrGroup);
-    const vrBase = new THREE.Mesh(new THREE.BoxGeometry(16, 9, 14), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.2 }));
+    const vrBase = new THREE.Mesh(new THREE.BoxGeometry(16, 9, 14), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.2, envMap: envMap }));
     vrBase.position.set(0, 4.5, 0); vrGroup.add(vrBase);
 
-    // 三孔電動旋轉物鏡轉盤
+    // 物鏡轉盤
     const nosepiece = new THREE.Group(); nosepiece.position.set(0, 11, 2); vrGroup.add(nosepiece);
     for (let i = 0; i < 3; i++) {
       const objLens = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.7, 3, 16), new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.85 }));
@@ -354,7 +376,7 @@
       nosepiece.add(objLens);
     }
 
-    // VR-6200 螢幕動態畫布 (繪製圖 4.2 3D 彩色高度圖)
+    // VR 螢幕畫布
     const vrCanvas = document.createElement('canvas'); vrCanvas.width = 512; vrCanvas.height = 384;
     const vrCtx = vrCanvas.getContext('2d');
     function drawVRScreen() {
@@ -379,10 +401,9 @@
     // ---------------------------------------------------------
     createBench(5, 0);
     const semGroup = new THREE.Group(); semGroup.position.set(5, -2, 0); scene.add(semGroup);
-    const semCol = new THREE.Mesh(new THREE.CylinderGeometry(5.5, 5.5, 18, 32), new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.65 }));
+    const semCol = new THREE.Mesh(new THREE.CylinderGeometry(5.5, 5.5, 18, 32), new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.7, envMap: envMap }));
     semCol.position.set(0, 10, 0); semGroup.add(semCol);
 
-    // SEM 螢幕動態畫布 (繪製圖 4.6 電鏡與圖 4.7 EDS 元素佔比)
     const semCanvas = document.createElement('canvas'); semCanvas.width = 512; semCanvas.height = 384;
     const semCtx = semCanvas.getContext('2d');
     function drawSEMScreen() {
@@ -419,10 +440,9 @@
     // ---------------------------------------------------------
     createBench(35, 0);
     const ramanGroup = new THREE.Group(); ramanGroup.position.set(35, -2, 0); scene.add(ramanGroup);
-    const ramanBody = new THREE.Mesh(new THREE.BoxGeometry(14, 12, 14), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3 }));
+    const ramanBody = new THREE.Mesh(new THREE.BoxGeometry(14, 12, 14), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, envMap: envMap }));
     ramanBody.position.set(0, 6, 0); ramanGroup.add(ramanBody);
 
-    // 拉曼光譜畫布 (圖 4.8 ~ 4.11 曲線)
     const ramanCanvas = document.createElement('canvas'); ramanCanvas.width = 512; ramanCanvas.height = 384;
     const ramanCtx = ramanCanvas.getContext('2d');
     function drawRamanScreen() {
@@ -433,8 +453,8 @@
       ramanCtx.beginPath(); ramanCtx.moveTo(50, 310); ramanCtx.lineTo(470, 310); ramanCtx.stroke();
       ramanCtx.strokeStyle = '#f97316'; ramanCtx.lineWidth = 3;
       ramanCtx.beginPath(); ramanCtx.moveTo(50, 260);
-      ramanCtx.quadraticCurveTo(120, 160, 140, 240); // 477 cm^-1 峰
-      ramanCtx.quadraticCurveTo(240, 190, 270, 250); // 1096 cm^-1 峰
+      ramanCtx.quadraticCurveTo(120, 160, 140, 240);
+      ramanCtx.quadraticCurveTo(240, 190, 270, 250);
       ramanCtx.lineTo(470, 270); ramanCtx.stroke();
       ramanCtx.fillStyle = '#10b981'; ramanCtx.font = '13px monospace';
       ramanCtx.fillText('✔ 520 cm⁻¹ 無晶矽尖峰 (維持玻璃非晶結構，無異常相變)', 50, 95);
@@ -450,10 +470,9 @@
     // ---------------------------------------------------------
     createBench(65, 0);
     const caeGroup = new THREE.Group(); caeGroup.position.set(65, -2, 0); scene.add(caeGroup);
-    const holoBase = new THREE.Mesh(new THREE.CylinderGeometry(7, 8, 2, 32), new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.8 }));
+    const holoBase = new THREE.Mesh(new THREE.CylinderGeometry(7, 8, 2, 32), new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.85, envMap: envMap }));
     holoBase.position.set(0, 8, 4); caeGroup.add(holoBase);
 
-    // 全息 Model B (10 µm 網格) 與暫態等溫雲
     const caeBlock = new THREE.Mesh(glassGeo, new THREE.MeshBasicMaterial({ color: 0x1e293b, wireframe: true, clippingPlanes: [clipPlane] }));
     caeBlock.position.set(0, 11, 4); caeGroup.add(caeBlock);
     const thermalSphere = new THREE.Mesh(new THREE.SphereGeometry(4.2, 16, 16), new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.5, wireframe: true, clippingPlanes: [clipPlane] }));
@@ -474,13 +493,13 @@
     updateHoles(3.0, 5.0);
 
     /* =========================================================
-       3. 真實光學調焦物理與未貫穿氣化下鑽演化 (核心物理引擎)
+       3. 真實光學調焦物理與未貫穿盲孔演化引擎
        ========================================================= */
     let isFiring = true;
     let isProbeTool = false;
     let currentPower = 1.2;
     let focusZ = 0.0;
-    let drillRatio = 0.0; // 盲孔深度演化 (最大深度限制為 5.492 um，絕不切穿)
+    let drillRatio = 0.0;
 
     const focusSlider = document.getElementById('focusSlider');
     focusSlider.addEventListener('input', (e) => {
@@ -492,14 +511,12 @@
     });
 
     function computePhysics() {
-      // 高斯束腰公式：偏離焦點時光斑直徑顯著擴大，能量密度平方反比驟降
-      const w0 = 0.725; // 焦點半徑 0.725 um (光斑直徑 1.45 um)
-      const zR = 1.6; // 雷利長度
+      const w0 = 0.725;
+      const zR = 1.6;
       const beamWaist = w0 * Math.sqrt(1 + Math.pow(focusZ / zR, 2));
       const energyDensityRatio = Math.min(1.0, Math.pow(w0 / beamWaist, 2));
       const isFocused = Math.abs(focusZ) <= 2.0;
 
-      // 實體光斑縮放反饋
       laserBeam.scale.set(beamWaist / w0, 1, beamWaist / w0);
 
       const effPower = currentPower * energyDensityRatio;
@@ -517,16 +534,15 @@
 
       const hudStatus = document.getElementById('hud-status');
       if (!isFocused) {
-        hudStatus.innerText = `⚠ 光束散焦失焦中 (光斑擴大至 ${(beamWaist*2).toFixed(2)} µm，能量低於氣化門檻，材料無移除)`;
+        hudStatus.innerText = `⚠ 光束散焦失焦中 (光斑擴大至 ${(beamWaist*2).toFixed(2)} µm，能量低於氣化門檻，無材料移除)`;
         hudStatus.style.color = 'var(--red)';
         laserBeam.material.opacity = 0.35;
       } else {
-        hudStatus.innerText = `● 焦平面對焦完成 (光斑直徑 1.45 µm | 盲孔氣化推進中)`;
+        hudStatus.innerText = `● 焦平面對焦完成 (聚焦直徑 1.45 µm | 盲孔氣化推進中)`;
         hudStatus.style.color = 'var(--green)';
-        laserBeam.material.opacity = 0.75;
+        laserBeam.material.opacity = 0.85;
       }
 
-      // 未貫穿盲孔幾何：深度最大受限於 5.492 um (絕不切穿)
       const r = Math.max(1.0, 3.0 * (effPower / 1.2));
       const maxBlindDepth = 5.2 * (effPower / 1.2);
       const activeD = Math.max(0.4, drillRatio * maxBlindDepth);
@@ -535,7 +551,7 @@
     }
 
     /* =========================================================
-       4. 相機運鏡切換 (解決旋轉被強制拉回的重大問題)
+       4. 相機運鏡 (解決視角強制拉回的重大問題)
        ========================================================= */
     const stations = {
       1: { pos: new THREE.Vector3(-55, 18, 30), target: new THREE.Vector3(-55, 4, 0), title: "工位 1: FSMM 飛秒加工機 (實體層)", desc: "可隨意 360° 拖曳旋轉、滾輪縮放！使用左側面板微調手輪對焦、點擊機台旋鈕調功率。" },
@@ -547,7 +563,7 @@
 
     let targetCamPos = camera.position.clone();
     let targetLookAt = controls.target.clone();
-    let isTransitioning = false; // 只有在切換工位時才鎖定相機
+    let isTransitioning = false; // 運鏡鎖定旗標
 
     function gotoStation(id) {
       document.querySelectorAll('.st-btn').forEach((b, i) => b.classList.toggle('active', i + 1 === id));
@@ -559,9 +575,7 @@
       document.getElementById('hud-desc').innerText = s.desc;
     }
 
-    /* =========================================================
-       5. 射線拾取與互動點擊 (機台旋鈕與測溫探針)
-       ========================================================= */
+    // 射線拾取
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     const probeTip = document.getElementById('probeTip');
@@ -602,7 +616,7 @@
     window.addEventListener('pointerdown', onPointerDown);
 
     /* =========================================================
-       6. 工具控制與閉環自動校正
+       5. 操作工具開關
        ========================================================= */
     function toggleFire() {
       isFiring = !isFiring;
@@ -632,19 +646,20 @@
       gotoStation(5);
     }
 
-    // 視窗縮放
+    // 自適應縮放
     window.addEventListener('resize', () => {
       camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(container.clientWidth, container.clientHeight);
+      composer.setSize(container.clientWidth, container.clientHeight);
     });
 
-    // 動畫與渲染迴圈
+    // 渲染循環 (由 EffectComposer 接管)
     const clock = new THREE.Clock();
     function animate() {
       requestAnimationFrame(animate);
 
-      // 相機運鏡：抵達目標點即刻釋放控制器，讓使用者自由旋轉
+      // 平滑運鏡：抵達後完全釋放 controls
       if (isTransitioning) {
         camera.position.lerp(targetCamPos, 0.08);
         controls.target.lerp(targetLookAt, 0.08);
@@ -656,7 +671,7 @@
 
       const dt = clock.getDelta();
 
-      // 只有在準焦時才逐層氣化下鑽
+      // 準焦時才逐層氣化下鑽
       if (isFiring && drillRatio < 1.0 && Math.abs(focusZ) <= 2.0) {
         drillRatio += dt * 0.25;
         computePhysics();
@@ -677,7 +692,7 @@
         plasmaParticles.geometry.attributes.position.needsUpdate = true;
       }
 
-      renderer.render(scene, camera);
+      composer.render();
     }
 
     // 啟動初始化

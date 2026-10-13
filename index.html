@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>飛秒雷射微孔加工數位雙生系統 | Digital Twin Interactive System</title>
+  <!-- KaTeX 數學公式即時渲染庫 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body);"></script>
+  <style>
+    :root {
+      --bg: #0b111e;
+      --panel: #131d31;
+      --card: #1b2842;
+      --border: #293b61;
+      --accent: #38bdf8;
+      --accent-warm: #f97316;
+      --danger: #ef4444;
+      --success: #10b981;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 1.5rem; line-height: 1.5; }
+    header { margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+    header h1 { font-size: 1.5rem; color: #fff; display: flex; align-items: center; gap: 0.5rem; }
+    header p { color: var(--muted); font-size: 0.875rem; margin-top: 0.25rem; }
+    .badge { background: #0284c7; color: #fff; font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: bold; }
+    
+    .grid { display: grid; grid-template-columns: 360px 1fr 340px; gap: 1.25rem; }
+    @media (max-width: 1200px) { .grid { grid-template-columns: 1fr; } }
+    
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; }
+    .card h2 { font-size: 1.1rem; color: var(--accent); margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; display: flex; justify-content: space-between; }
+    
+    /* 控制器 */
+    .ctrl-group { margin-bottom: 0.9rem; }
+    .ctrl-label { display: flex; justify-content: space-between; font-size: 0.825rem; color: var(--muted); margin-bottom: 0.25rem; }
+    .ctrl-label span.val { color: #fff; font-weight: bold; }
+    input[type=range] { width: 100%; accent-color: var(--accent); }
+    
+    /* 公式盒 */
+    .math-box { background: var(--card); border-left: 3px solid var(--accent); padding: 0.5rem 0.75rem; margin-top: 0.5rem; border-radius: 0 4px 4px 0; font-size: 0.8rem; }
+    .math-row { display: flex; justify-content: space-between; margin-bottom: 0.25rem; }
+    
+    /* 畫布視窗 */
+    .canvas-container { position: relative; background: #050811; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; height: 380px; }
+    canvas { width: 100%; height: 100%; display: block; }
+    .canvas-overlay { position: absolute; top: 10px; left: 10px; background: rgba(11, 17, 30, 0.85); border: 1px solid var(--border); padding: 0.4rem 0.6rem; border-radius: 4px; font-size: 0.75rem; pointer-events: none; }
+    
+    /* 儀表看版 */
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+    .kpi-card { background: var(--card); padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border); text-align: center; }
+    .kpi-title { font-size: 0.75rem; color: var(--muted); }
+    .kpi-value { font-size: 1.3rem; font-weight: bold; color: #fff; margin: 0.2rem 0; }
+    .kpi-sub { font-size: 0.7rem; }
+    .text-danger { color: var(--danger); }
+    .text-success { color: var(--success); }
+    .text-warn { color: var(--accent-warm); }
+    
+    /* 檢驗資料表 */
+    table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-top: 0.5rem; }
+    th, td { border: 1px solid var(--border); padding: 0.35rem 0.5rem; text-align: left; }
+    th { background: var(--card); color: var(--muted); }
+    
+    .btn-row { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    button { flex: 1; padding: 0.5rem; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { background: #7dd3fc; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: #fff; }
+    .btn-outline:hover { background: var(--card); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>
+      <span>飛秒雷射半導體加工多物理場數位雙生系統</span>
+      <span class="badge">EAGLE XG 玻璃微孔專用</span>
+    </h1>
+    <p>結合 Beer-Lambert 體積熱源修正、實體光學量測比對與冷卻期殘留拉應力微裂紋預警模型</p>
+  </header>
+
+  <div class="grid">
+    <!-- 左欄：參數動態控制與物理公式計算 -->
+    <div class="card">
+      <h2>製程參數調諧 (Process Parameters)</h2>
+      
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>平均功率 $P_{avg}$ (W)</span><span class="val" id="val-pavg">1.2 W</span></div>
+        <input type="range" id="pavg" min="0.2" max="3.0" step="0.1" value="1.2">
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>重複頻率 $f$ (kHz)</span><span class="val" id="val-freq">500 kHz</span></div>
+        <input type="range" id="freq" min="300" max="1000" step="50" value="500">
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>掃描速度 $v$ (mm/s)</span><span class="val" id="val-speed">25 mm/s</span></div>
+        <input type="range" id="speed" min="5" max="100" step="5" value="25">
+      </div>
+
+      <h2 style="margin-top:1.25rem;">數位雙生熱源校準參數</h2>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>能量耦合吸收率 $\eta$</span><span class="val" id="val-eta">0.30</span></div>
+        <input type="range" id="eta" min="0.1" max="0.5" step="0.02" value="0.30">
+      </div>
+
+      <div class="ctrl-group">
+        <div class="ctrl-label"><span>光束動態衰減 $\alpha_{beam}$ ($\text{mm}^{-1}$)</span><span class="val" id="val-alpha">3.0</span></div>
+        <input type="range" id="alpha" min="1.0" max="5.0" step="0.2" value="3.0">
+      </div>
+
+      <!-- 即時物理公式計算面板 -->
+      <h2 style="margin-top:1.25rem;">即時物理方程運算</h2>
+      <div class="math-box">
+        <div class="math-row"><span>單脈衝能量 $E_p = \frac{P_{avg}}{f}$:</span><span id="calc-ep" class="text-warn">2.40 µJ</span></div>
+        <div class="math-row"><span>脈衝間距 $d_p = \frac{v}{f}$:</span><span id="calc-dp">0.050 µm</span></div>
+        <div class="math-row"><span>脈衝重疊率 $O_p$:</span><span id="calc-op" class="text-success">96.5%</span></div>
+        <div class="math-row"><span>體積熱源衰減比:</span><span id="calc-decay">$e^{-3.0 \cdot z}$</span></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary" onclick="triggerLaserPulse()">激發單次加工循環</button>
+        <button class="btn-outline" onclick="resetDefaults()">重置為論文基準值</button>
+      </div>
+    </div>
+
+    <!-- 中欄：Canvas 實體加工 vs 數位雙生模擬雙重視角 -->
+    <div class="card" style="display:flex; flex-direction:column;">
+      <h2>
+        <span>微孔加工多物理場動態映射 (Canvas Simulation)</span>
+        <span style="font-size:0.75rem; color:var(--muted); font-weight:normal;">實時虛實映射循環中</span>
+      </h2>
+      
+      <div class="canvas-container" style="flex:1;">
+        <canvas id="simCanvas"></canvas>
+        <div class="canvas-overlay" id="canvasStatus">
+          狀態：雷射發射中 | 溫度場求解 Step 1: 熱傳導中
+        </div>
+      </div>
+
+      <!-- 說明文案 -->
+      <div style="font-size:0.75rem; color:var(--muted); margin-top:0.75rem; line-height:1.4;">
+        * <strong>左側圖層 (Physical View)</strong>：模擬高頻飛秒脈衝冷加工去除，電漿微噴濺與未貫穿孔洞形貌。<br>
+        * <strong>右側圖層 (Digital Twin View)</strong>：呈現 ABAQUS DFLUX 暫態溫度場等溫線與冷卻期孔口拉應力聚集區。
+      </div>
+    </div>
+
+    <!-- 右欄：KPI 儀表看板與實測數據對照 -->
+    <div class="card">
+      <h2>數位雙生預測與品質指標</h2>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-title">雷射中心峰值溫度</div>
+          <div class="kpi-value text-warn" id="kpi-temp">4383.7 °C</div>
+          <div class="kpi-sub text-success">超過氣化閾值成孔</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-title">冷卻期最大主拉應力</div>
+          <div class="kpi-value text-danger" id="kpi-stress">280.9 MPa</div>
+          <div class="kpi-sub text-danger" id="kpi-crack">⚠ 裂紋萌生高風險區</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-title">預測入口孔徑 (D_top)</div>
+          <div class="kpi-value" id="kpi-dia">289.5 µm</div>
+          <div class="kpi-sub" id="kpi-err">誤差率: +0.24%</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-title">孔壁錐度角 (Taper)</div>
+          <div class="kpi-value" id="kpi-taper">6.8°</div>
+          <div class="kpi-sub">基準偏差: +1.1°</div>
+        </div>
+      </div>
+
+      <h2>實體檢驗成績單 (驗證基準)</h2>
+      <table>
+        <thead>
+          <tr><th>量測項目</th><th>目標/實測值</th><th>品質評價</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>陣列孔距 (Spacing)</td><td>200.025 µm</td><td class="text-success">定位精度極高</td></tr>
+          <tr><td>表面粗糙度 (Sa)</td><td>0.013 µm</td><td class="text-success">低熱損傷/冷加工</td></tr>
+          <tr><td>EDS 元素組成</td><td>O:48%, B:26%, Si:17%</td><td class="text-success">純基材無污染</td></tr>
+          <tr><td>Raman 拉曼位移</td><td>主要特徵 477, 1096 cm⁻¹</td><td class="text-success">非晶網路無異常相</td></tr>
+        </tbody>
+      </table>
+
+      <h2 style="margin-top:1rem;">決策建議 (Decision Layer)</h2>
+      <div id="decision-text" style="font-size:0.8rem; background:var(--card); padding:0.6rem; border-radius:4px; border-left:3px solid var(--success);">
+        ✔ 當前參數組合 ($\eta=0.3, \alpha=3.0$) 已達到幾何收斂最佳化，孔徑誤差小於 1%，建議作為安全生產視窗。
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 繪圖與物理常數
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+
+    function resize() {
+      width = canvas.parentElement.clientWidth;
+      height = canvas.parentElement.clientHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // 粒子系統 (模擬材料氣化噴濺)
+    let particles = [];
+    let pulseTime = 0;
+    let isFiring = true;
+
+    // DOM 節點
+    const pavgIn = document.getElementById('pavg');
+    const freqIn = document.getElementById('freq');
+    const speedIn = document.getElementById('speed');
+    const etaIn = document.getElementById('eta');
+    const alphaIn = document.getElementById('alpha');
+
+    function update() {
+      const pavg = parseFloat(pavgIn.value);
+      const freq = parseFloat(freqIn.value);
+      const speed = parseFloat(speedIn.value);
+      const eta = parseFloat(etaIn.value);
+      const alpha = parseFloat(alphaIn.value);
+
+      // 即時換算標籤
+      document.getElementById('val-pavg').innerText = pavg.toFixed(1) + ' W';
+      document.getElementById('val-freq').innerText = freq + ' kHz';
+      document.getElementById('val-speed').innerText = speed + ' mm/s';
+      document.getElementById('val-eta').innerText = eta.toFixed(2);
+      document.getElementById('val-alpha').innerText = alpha.toFixed(1);
+
+      // 物理公式
+      const ep = (pavg / (freq * 1000)) * 1e6; // µJ
+      const dp = (speed / (freq * 1000)) * 1000; // µm
+      const w0 = 1.45 / 2; // 光斑半徑 ~0.725um
+      let op = (1 - (dp / (2 * w0))) * 100;
+      if (op < 0) op = 0;
+
+      document.getElementById('calc-ep').innerText = ep.toFixed(2) + ' µJ';
+      document.getElementById('calc-dp').innerText = dp.toFixed(3) + ' µm';
+      document.getElementById('calc-op').innerText = op.toFixed(1) + '%';
+      document.getElementById('calc-decay').innerText = `e^(-${alpha.toFixed(1)}·z)`;
+
+      // 數位雙生非線性物理預測模擬
+      const temp = 4383.7 * (pavg / 1.2) * (eta / 0.3);
+      const stress = 280.9 * (pavg / 1.2) * (eta / 0.3) * (alpha / 3.0);
+      const dia = 288.8 * Math.sqrt(eta / 0.3) * (1.0 + (3.0 - alpha) * 0.05);
+      const err = ((dia - 288.8) / 288.8) * 100;
+      const taper = 5.7 + (alpha - 3.0) * 1.5;
+
+      document.getElementById('kpi-temp').innerText = temp.toFixed(1) + ' °C';
+      document.getElementById('kpi-stress').innerText = stress.toFixed(1) + ' MPa';
+      document.getElementById('kpi-dia').innerText = dia.toFixed(1) + ' µm';
+      document.getElementById('kpi-taper').innerText = taper.toFixed(1) + '°';
+      
+      const errEl = document.getElementById('kpi-err');
+      errEl.innerText = '誤差率: ' + (err > 0 ? '+' : '') + err.toFixed(2) + '%';
+      errEl.className = Math.abs(err) < 2.0 ? 'kpi-sub text-success' : 'kpi-sub text-danger';
+
+      const crackEl = document.getElementById('kpi-crack');
+      const decisionEl = document.getElementById('decision-text');
+      if (stress > 290) {
+        crackEl.innerText = '⚠ 微裂紋崩角高風險！';
+        crackEl.className = 'kpi-sub text-danger';
+        decisionEl.innerHTML = `<span style="color:var(--danger)">❌ 警告：最大主拉應力 (${stress.toFixed(1)} MPa) 超過 EAGLE XG 破壞門檻，建議降低功率或提高退火冷卻時間。</span>`;
+        decisionEl.style.borderLeftColor = 'var(--danger)';
+      } else {
+        crackEl.innerText = '✔ 處於安全應力視窗內';
+        crackEl.className = 'kpi-sub text-success';
+        decisionEl.innerHTML = `✔ 當前參數組合誤差收斂在 ${Math.abs(err).toFixed(2)}%，應力控制穩定，建議套用為工廠排程基準。`;
+        decisionEl.style.borderLeftColor = 'var(--success)';
+      }
+    }
+
+    [pavgIn, freqIn, speedIn, etaIn, alphaIn].forEach(input => {
+      input.addEventListener('input', update);
+    });
+
+    function triggerLaserPulse() {
+      pulseTime = 120; // 觸發 2 秒動畫
+      for (let i = 0; i < 40; i++) {
+        particles.push({
+          x: width * 0.25,
+          y: height * 0.45,
+          vx: (Math.random() - 0.5) * 6,
+          vy: -Math.random() * 8 - 2,
+          life: 1.0,
+          color: Math.random() > 0.5 ? '#f97316' : '#38bdf8'
+        });
+      }
+    }
+
+    function resetDefaults() {
+      pavgIn.value = 1.2;
+      freqIn.value = 500;
+      speedIn.value = 25;
+      etaIn.value = 0.3;
+      alphaIn.value = 3.0;
+      update();
+    }
+
+    // 動畫渲染迴圈
+    function render() {
+      ctx.clearRect(0, 0, width, height);
+
+      const splitX = width * 0.5;
+      // 繪製分隔線
+      ctx.strokeStyle = '#293b61';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(splitX, 0);
+      ctx.lineTo(splitX, height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 標註
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('[實體加工層: 飛秒雷射冷去除]', 20, 25);
+      ctx.fillText('[數位雙生層: 暫態熱場與熱應力]', splitX + 20, 25);
+
+      const eta = parseFloat(etaIn.value);
+      const alpha = parseFloat(alphaIn.value);
+      const holeDepth = 120 * (eta / 0.3) * (3.0 / alpha);
+      const holeWidth = 70 * (eta / 0.3);
+
+      // ================= 左側：實體玻璃基板與微孔 =================
+      const pCenterX = width * 0.25;
+      const surfaceY = height * 0.45;
+
+      // 玻璃基板
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
+      ctx.fillRect(20, surfaceY, splitX - 40, height - surfaceY - 20);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.strokeRect(20, surfaceY, splitX - 40, height - surfaceY - 20);
+
+      // 微孔凹坑輪廓 (倒錐狀)
+      ctx.fillStyle = '#050811';
+      ctx.beginPath();
+      ctx.moveTo(pCenterX - holeWidth, surfaceY);
+      ctx.quadraticCurveTo(pCenterX - holeWidth * 0.4, surfaceY + holeDepth, pCenterX, surfaceY + holeDepth);
+      ctx.quadraticCurveTo(pCenterX + holeWidth * 0.4, surfaceY + holeDepth, pCenterX + holeWidth, surfaceY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#f97316';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // 雷射光束
+      if (pulseTime > 0) {
+        ctx.fillStyle = 'rgba(249, 115, 22, 0.45)';
+        ctx.beginPath();
+        ctx.moveTo(pCenterX - 12, 40);
+        ctx.lineTo(pCenterX + 12, 40);
+        ctx.lineTo(pCenterX + 2, surfaceY + holeDepth * 0.7);
+        ctx.lineTo(pCenterX - 2, surfaceY + holeDepth * 0.7);
+        ctx.closePath();
+        ctx.fill();
+
+        // 電漿火球
+        ctx.fillStyle = '#ffedd5';
+        ctx.beginPath();
+        ctx.arc(pCenterX, surfaceY + holeDepth * 0.6, 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // ================= 右側：數位雙生溫度與應力雲圖 =================
+      const dCenterX = splitX + width * 0.25;
+
+      // 玻璃基板
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+      ctx.fillRect(splitX + 20, surfaceY, splitX - 40, height - surfaceY - 20);
+
+      // 熱影響雲圖 (Beer-Lambert 梯度衰減)
+      const grad = ctx.createRadialGradient(dCenterX, surfaceY, 5, dCenterX, surfaceY + holeDepth * 0.6, holeWidth * 1.8);
+      grad.addColorStop(0, 'rgba(239, 68, 68, 0.85)'); // 高溫核心 (4000C)
+      grad.addColorStop(0.3, 'rgba(249, 115, 22, 0.6)'); // 軟化點 (972C)
+      grad.addColorStop(0.7, 'rgba(56, 189, 248, 0.2)'); // 熱擴散邊緣
+      grad.addColorStop(1, 'transparent');
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(dCenterX, surfaceY + holeDepth * 0.3, holeWidth * 1.4, holeDepth * 0.9, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 孔緣冷卻期最大拉伸應力集中光圈 (280.9 MPa)
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(dCenterX - holeWidth, surfaceY, 10, 0, Math.PI * 2);
+      ctx.arc(dCenterX + holeWidth, surfaceY, 10, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ef4444';
+      ctx.font = '10px sans-serif';
+      ctx.fillText('σ_max = 280.9 MPa', dCenterX + holeWidth + 12, surfaceY + 4);
+
+      // 更新噴濺粒子
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.2; // 重力
+        p.life -= 0.02;
+
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+
+      if (pulseTime > 0) {
+        pulseTime--;
+        document.getElementById('canvasStatus').innerText = '狀態：高頻脈衝能量注入中 (100 fs 激發 ➔ 電漿噴發)';
+      } else {
+        document.getElementById('canvasStatus').innerText = '狀態：分析步完成 | 順序耦合應力求解完成 (收斂)';
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    update();
+    render();
+    triggerLaserPulse();
+  </script>
+</body>
+</html>

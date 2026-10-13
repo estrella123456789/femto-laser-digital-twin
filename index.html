@@ -2,8 +2,8 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>飛秒雷射半導體微加工多物理場數位雙生 3D 全流程虛實工作站</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>沉浸式 3D 飛秒雷射微加工多物理場數位雙生實驗室</title>
   
   <!-- KaTeX 數學公式庫 -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
@@ -11,89 +11,64 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"
           onload="renderMathInElement(document.body);"></script>
 
-  <!-- Three.js 3D 引擎與控制器 -->
+  <!-- Three.js 核心與軌道控制器 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
   <style>
     :root {
-      --bg-dark: #080d1a;
-      --panel-bg: rgba(13, 20, 38, 0.95);
-      --card-bg: #141f36;
+      --bg-dark: #050811;
+      --panel: rgba(11, 17, 33, 0.94);
+      --card: #131d33;
       --border: #223254;
-      --accent-cyan: #38bdf8;
-      --accent-orange: #f97316;
-      --accent-green: #10b981;
-      --accent-red: #ef4444;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --orange: #f97316;
+      --green: #10b981;
+      --red: #ef4444;
+      --text: #f8fafc;
+      --muted: #94a3b8;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; }
-    body { background: var(--bg-dark); color: var(--text-main); overflow: hidden; height: 100vh; width: 100vw; display: flex; flex-direction: column; }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg-dark); color: var(--text); overflow: hidden; height: 100vh; width: 100vw; display: flex; flex-direction: column; touch-action: none; }
 
     /* 頂部導覽列 */
-    header { height: 52px; background: var(--panel-bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; z-index: 20; }
-    .brand { display: flex; align-items: center; gap: 0.6rem; }
-    .brand h1 { font-size: 1.05rem; font-weight: 700; color: #fff; }
-    .badge-tag { background: #0284c7; color: #fff; font-size: 0.7rem; padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 600; }
+    header { height: 48px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 1rem; z-index: 50; }
+    .brand { font-size: 0.95rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 0.5rem; }
+    .badge { background: #0284c7; font-size: 0.65rem; padding: 0.15rem 0.45rem; border-radius: 4px; }
+
+    /* 工位切換快捷鈕 (平滑運鏡) */
+    .station-nav { display: flex; gap: 0.35rem; overflow-x: auto; scrollbar-width: none; }
+    .station-nav::-webkit-scrollbar { display: none; }
+    .st-btn { background: var(--card); border: 1px solid var(--border); color: var(--muted); padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.72rem; cursor: pointer; white-space: nowrap; transition: 0.2s; }
+    .st-btn.active, .st-btn:hover { background: var(--cyan); color: #000; font-weight: 700; border-color: var(--cyan); }
+
+    /* 3D 全螢幕畫布 */
+    #canvas-container { flex: 1; position: relative; width: 100%; height: 100%; }
+
+    /* 畫面 HUD 提示與操作指引 */
+    .hud-guide { position: absolute; top: 0.75rem; left: 0.75rem; background: rgba(5, 8, 17, 0.88); border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.85rem; font-size: 0.75rem; z-index: 10; pointer-events: none; line-height: 1.5; max-width: 320px; }
+    .hud-title { color: var(--cyan); font-weight: 700; font-size: 0.8rem; margin-bottom: 0.2rem; }
     
-    .nav-steps { display: flex; gap: 0.35rem; }
-    .btn-step { background: var(--card-bg); border: 1px solid var(--border); color: var(--text-muted); padding: 0.35rem 0.65rem; border-radius: 4px; font-size: 0.72rem; cursor: pointer; transition: 0.2s; }
-    .btn-step.active, .btn-step:hover { background: var(--accent-cyan); color: #000; font-weight: 700; border-color: var(--accent-cyan); }
+    /* 懸浮 3D 互動提示標籤 (Clickable Tooltip) */
+    .tooltip-3d { position: absolute; background: rgba(0, 0, 0, 0.9); border: 1px solid var(--cyan); color: #fff; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.72rem; pointer-events: none; z-index: 20; transform: translate(-50%, -120%); display: none; white-space: nowrap; }
 
-    /* 主要內容架構 */
-    main { flex: 1; display: grid; grid-template-columns: 320px 1fr 340px; position: relative; overflow: hidden; }
+    /* 底部手動工具箱 */
+    .bottom-bar { position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.5rem; background: rgba(11, 17, 33, 0.95); border: 1px solid var(--border); padding: 0.4rem 0.8rem; border-radius: 30px; z-index: 30; max-width: 95vw; overflow-x: auto; }
+    .tool-btn { background: var(--card); border: 1px solid var(--border); color: #fff; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
+    .tool-btn.active { background: var(--orange); border-color: var(--orange); color: #000; }
 
-    /* 左右面板 */
-    .panel { background: var(--panel-bg); border-color: var(--border); overflow-y: auto; z-index: 10; padding: 0.85rem; display: flex; flex-direction: column; gap: 0.75rem; }
-    .panel-left { border-right: 1px solid var(--border); }
-    .panel-right { border-left: 1px solid var(--border); }
+    /* 側邊工程數據收合抽屜 */
+    .drawer-toggle { position: absolute; top: 0.75rem; right: 0.75rem; background: var(--card); border: 1px solid var(--border); color: var(--cyan); padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.72rem; font-weight: 700; cursor: pointer; z-index: 40; }
+    .side-drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 340px; background: var(--panel); border-left: 1px solid var(--border); padding: 1rem; display: flex; flex-direction: column; gap: 0.85rem; transform: translateX(105%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); z-index: 45; overflow-y: auto; }
+    .side-drawer.open { transform: translateX(0); }
+    .drawer-head { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; font-size: 0.85rem; color: var(--cyan); font-weight: 700; }
 
-    .sec-head { font-size: 0.88rem; color: var(--accent-cyan); font-weight: 700; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.35rem; }
-    .sec-head button { background: none; border: none; color: var(--accent-orange); font-size: 0.72rem; cursor: pointer; text-decoration: underline; }
-
-    /* 控制組件 */
-    .card-box { background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.65rem; font-size: 0.75rem; }
-    .ctrl-row { margin-bottom: 0.5rem; }
-    .ctrl-row:last-child { margin-bottom: 0; }
-    .ctrl-info { display: flex; justify-content: space-between; margin-bottom: 0.2rem; color: var(--text-muted); }
-    .ctrl-val { color: #fff; font-weight: 700; }
-    input[type=range] { width: 100%; accent-color: var(--accent-cyan); cursor: pointer; }
-
-    /* 公式盒 */
-    .formula-box { background: rgba(56, 189, 248, 0.08); border-left: 3px solid var(--accent-cyan); padding: 0.45rem 0.6rem; border-radius: 0 4px 4px 0; font-size: 0.72rem; line-height: 1.5; }
-
-    /* 中間 3D 雙視圖畫布區域 */
-    #viewport-container { width: 100%; height: 100%; position: relative; display: grid; grid-template-columns: 1fr 1fr; background: #000; }
-    .viewport-half { width: 100%; height: 100%; position: relative; overflow: hidden; }
-    .viewport-divider { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--accent-cyan); z-index: 5; pointer-events: none; opacity: 0.7; }
-    
-    .hud-label { position: absolute; top: 0.75rem; background: rgba(8, 13, 26, 0.88); border: 1px solid var(--border); padding: 0.35rem 0.65rem; border-radius: 4px; font-size: 0.72rem; z-index: 5; pointer-events: none; }
-    .hud-left { left: 0.75rem; }
-    .hud-right { right: 0.75rem; }
-
-    /* 下方操作工具列 */
-    .tools-bar { position: absolute; bottom: 1.25rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.5rem; background: rgba(13, 20, 38, 0.95); border: 1px solid var(--border); padding: 0.35rem 0.65rem; border-radius: 30px; z-index: 15; }
-    .btn-tool { background: var(--card-bg); border: 1px solid var(--border); color: #fff; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
-    .btn-tool.active { background: var(--accent-orange); border-color: var(--accent-orange); color: #000; }
-
-    /* KPI 卡片 */
-    .kpi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
-    .kpi-item { background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem; text-align: center; }
-    .kpi-num { font-size: 1.15rem; font-weight: 800; color: #fff; margin: 0.15rem 0; }
-
-    /* 表格 */
-    table.compact-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
-    table.compact-table th, table.compact-table td { border: 1px solid var(--border); padding: 0.3rem 0.4rem; text-align: left; }
-    table.compact-table th { background: #1a2844; color: var(--text-muted); }
-
-    /* 彈窗 Modal */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); display: none; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(3px); }
-    .modal-card { background: var(--panel-bg); border: 1px solid var(--border); border-radius: 8px; width: 90%; max-width: 620px; max-height: 80vh; overflow-y: auto; padding: 1.25rem; display: flex; flex-direction: column; gap: 0.85rem; }
-    .modal-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
-    .modal-close { background: none; border: none; color: var(--text-muted); font-size: 1.4rem; cursor: pointer; }
-    .modal-body { font-size: 0.82rem; line-height: 1.6; color: var(--text-main); }
-    .modal-body h3 { color: var(--accent-cyan); margin: 0.6rem 0 0.2rem 0; font-size: 0.9rem; }
+    /* 數據卡與表格 */
+    .kpi-box { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem; text-align: center; }
+    .kpi-num { font-size: 1.25rem; font-weight: 800; color: #fff; margin: 0.15rem 0; }
+    table.data-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+    table.data-table th, table.data-table td { border: 1px solid var(--border); padding: 0.3rem 0.4rem; text-align: left; }
+    table.data-table th { background: #18253f; color: var(--muted); }
   </style>
 </head>
 <body>
@@ -101,570 +76,720 @@
   <!-- 頂部工作列 -->
   <header>
     <div class="brand">
-      <h1>飛秒雷射微孔加工多物理場數位雙生系統</h1>
-      <span class="badge-tag">EAGLE XG 玻璃微鑽孔</span>
+      <span>飛秒雷射微加工數位雙生虛擬工作站</span>
+      <span class="badge">EAGLE XG 玻璃</span>
     </div>
 
-    <!-- 流程導覽按鈕 -->
-    <div class="nav-steps">
-      <button class="btn-step active" onclick="jumpToStep(1)">1. 機台設定</button>
-      <button class="btn-step" onclick="jumpToStep(2)">2. 3D 熱源下鑽</button>
-      <button class="btn-step" onclick="jumpToStep(3)">3. 多維量測檢驗</button>
-      <button class="btn-step" onclick="jumpToStep(4)">4. 虛實閉環校正</button>
-      <button class="btn-step" onclick="jumpToStep(5)">5. 順序耦合求解</button>
-      <button class="btn-step" onclick="jumpToStep(6)">6. 微裂紋破壞預警</button>
+    <!-- 5 大工業工位平滑運鏡按鈕 -->
+    <div class="station-nav">
+      <button class="st-btn active" onclick="switchStation(1)">工位 1: FSMM 實體機台</button>
+      <button class="st-btn" onclick="switchStation(2)">工位 2: VR-6200 輪廓儀</button>
+      <button class="st-btn" onclick="switchStation(3)">工位 3: Phenom SEM/EDS</button>
+      <button class="st-btn" onclick="switchStation(4)">工位 4: 顯微拉曼光譜台</button>
+      <button class="st-btn" onclick="switchStation(5)">工位 5: ABAQUS CAE 雙生終端</button>
     </div>
   </header>
 
-  <!-- 主操作區 -->
-  <main>
-    <!-- 左側面板：實體參數輸入與數學公式運算 -->
-    <aside class="panel panel-left">
-      <div class="sec-head">
-        <span>加工參數 (機台實體層)</span>
-        <button onclick="openModal(1)">詳細作法</button>
-      </div>
-      <div class="card-box">
-        <div class="ctrl-row">
-          <div class="ctrl-info"><span>雷射平均功率 $P_{avg}$</span><span class="ctrl-val" id="disp-pavg">1.2 W</span></div>
-          <input type="range" id="slider-pavg" min="0.2" max="3.0" step="0.1" value="1.2">
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-info"><span>脈衝重複頻率 $f$</span><span class="ctrl-val" id="disp-freq">500 kHz</span></div>
-          <input type="range" id="slider-freq" min="300" max="1000" step="50" value="500">
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-info"><span>掃描速度 $v$</span><span class="ctrl-val" id="disp-speed">25 mm/s</span></div>
-          <input type="range" id="slider-speed" min="5" max="100" step="5" value="25">
-        </div>
-      </div>
-
-      <div class="sec-head">
-        <span>能量作用方程即時聯立運算</span>
-        <button onclick="openModal(2)">公式推導</button>
-      </div>
-      <div class="formula-box">
-        <div>單脈衝能量：$E_p = \frac{P_{avg}}{f} =$ <strong id="out-ep" style="color:var(--accent-orange)">2.40 µJ</strong></div>
-        <div>脈衝間距：$d_p = \frac{v}{f} =$ <span id="out-dp">0.050 µm</span></div>
-        <div>重疊率：$O_p = (1 - \frac{d_p}{2w_0}) =$ <strong id="out-op" style="color:var(--accent-green)">96.55%</strong></div>
-        <div style="margin-top:0.25rem;">體積熱源吸收率：$Q(r, z) \propto e^{-\frac{2r^2}{w_0^2}} e^{-\alpha z}$</div>
-      </div>
-
-      <div class="sec-head">
-        <span>數位雙生反向校正參數</span>
-        <button onclick="openModal(4)">校準邏輯</button>
-      </div>
-      <div class="card-box">
-        <div class="ctrl-row">
-          <div class="ctrl-info"><span>能量耦合吸收率 $\eta$</span><span class="ctrl-val" id="disp-eta">0.30</span></div>
-          <input type="range" id="slider-eta" min="0.1" max="0.5" step="0.02" value="0.30">
-        </div>
-        <div class="ctrl-row">
-          <div class="ctrl-info"><span>動態衰減係數 $\alpha_{beam}$</span><span class="ctrl-val" id="disp-alpha">3.0 mm⁻¹</span></div>
-          <input type="range" id="slider-alpha" min="1.0" max="5.0" step="0.2" value="3.0">
-        </div>
-      </div>
-
-      <div class="sec-head">
-        <span>X-Z 剖面切開檢視 (Slice Cut)</span>
-      </div>
-      <div class="card-box">
-        <div class="ctrl-row">
-          <div class="ctrl-info"><span>剖切位置深度</span><span class="ctrl-val" id="disp-slice">50% (正中剖開)</span></div>
-          <input type="range" id="slider-slice" min="0" max="100" value="50">
-        </div>
-      </div>
-    </aside>
-
-    <!-- 中間：左右雙分割視窗 (左實體機台 vs 右虛擬雙生) -->
-    <div id="viewport-container">
-      <!-- 左：實體物理視圖 -->
-      <div class="viewport-half" id="view-physical">
-        <div class="hud-label hud-left">
-          <span style="color:var(--accent-orange); font-weight:700;">[實體端] FSMM 機台與光學微鑽孔</span><br>
-          基板：EAGLE XG 玻璃 | 電漿微噴濺與物理成孔
-        </div>
-      </div>
-
-      <!-- 中間分割線 -->
-      <div class="viewport-divider"></div>
-
-      <!-- 右：虛擬數位雙生視圖 -->
-      <div class="viewport-half" id="view-digital">
-        <div class="hud-label hud-right">
-          <span style="color:var(--accent-cyan); font-weight:700;">[虛擬端] ABAQUS 多物理場動態映射</span><br>
-          溫度場等溫雲圖 (Step 1) ➔ 殘留熱拉應力 (Step 2)
-        </div>
-      </div>
-
-      <!-- 下方工具列 -->
-      <div class="tools-bar">
-        <button class="btn-tool active" id="btn-fire" onclick="toggleFire()">雷射發射開關</button>
-        <button class="btn-tool" onclick="resetViews()">重置視角</button>
-        <button class="btn-tool active" id="btn-clip" onclick="toggleClip()">半剖切開檢視</button>
-        <button class="btn-tool" onclick="setBenchmark()">套用論文最佳化參數</button>
-      </div>
+  <!-- 3D 渲染視窗 -->
+  <div id="canvas-container">
+    <!-- 操作與即時導覽 HUD -->
+    <div class="hud-guide">
+      <div class="hud-title" id="hud-st-title">工位 1：FSMM 飛秒雷射微加工機 (實體層)</div>
+      <div id="hud-st-desc">滑鼠點擊 3D 設備直接操作：點擊物鏡手輪對焦、轉動電源旋鈕調功率、點擊快門按鈕發射雷射[cite: 258, 259]。</div>
+      <div style="margin-top:0.35rem; color:var(--green); font-weight:700;" id="hud-status">● 焦點狀態：焦平面精準對焦 ($w_0 = 0.725\,\mu\text{m}$)</div>
     </div>
 
-    <!-- 右側面板：量測檢驗數據、順序耦合應力預測 -->
-    <aside class="panel panel-right">
-      <div class="sec-head">
-        <span>多物理場分析與預警</span>
-        <button onclick="openModal(5)">順序耦合理論</button>
+    <!-- 3D 懸浮標籤 (點擊探針或旋鈕時顯示) -->
+    <div class="tooltip-3d" id="tag3d">探針測溫：4383.7 °C</div>
+
+    <!-- 底部操作工具列 -->
+    <div class="bottom-bar">
+      <button class="tool-btn active" id="btn-fire" onclick="toggleLaserFire()">雷射快門開關</button>
+      <button class="tool-btn" id="btn-probe" onclick="toggleThermalProbe()">測溫探針工具</button>
+      <button class="tool-btn" id="btn-slice" onclick="toggleSlicingTool()">3D 剖切刀工具</button>
+      <button class="tool-btn" onclick="resetCurrentView()">重置工位視角</button>
+      <button class="tool-btn" onclick="triggerAutoCalibration()">執行閉環自動校正</button>
+    </div>
+
+    <!-- 抽屜開關按鈕 -->
+    <button class="drawer-toggle" onclick="toggleDrawer()">檢視工程報表與 CAE 數據</button>
+
+    <!-- 側邊工程數據抽屜 -->
+    <div class="side-drawer" id="sideDrawer">
+      <div class="drawer-head">
+        <span>多物理場與 CAE 數位雙生報表</span>
+        <button onclick="toggleDrawer()" style="background:none; border:none; color:var(--muted); font-size:1.1rem; cursor:pointer;">&times;</button>
       </div>
-      <div class="kpi-row">
-        <div class="kpi-item">
-          <div style="font-size:0.68rem; color:var(--text-muted);">中心峰值溫度 (Step 1)</div>
-          <div class="kpi-num" id="kpi-temp" style="color:var(--accent-orange)">4383.7 °C</div>
-          <div style="font-size:0.65rem; color:var(--accent-green);">達到氣化門檻 (2500°C)</div>
+
+      <div style="font-size:0.75rem; color:var(--muted);">
+        當前工件：EAGLE XG 鹼土硼鋁矽酸鹽半導體玻璃基板 (厚度 0.5 mm)[cite: 161, 204, 205]。
+      </div>
+
+      <!-- KPI 雙指標 -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+        <div class="kpi-box">
+          <div style="font-size:0.68rem; color:var(--muted);">中心峰值溫度 (Step 1)</div>
+          <div class="kpi-num" id="side-temp" style="color:var(--orange)">4383.7 °C</div>
+          <div style="font-size:0.62rem; color:var(--green);">達到氣化門檻 (2500°C)</div>
         </div>
-        <div class="kpi-item">
-          <div style="font-size:0.68rem; color:var(--text-muted);">冷卻期最大主應力 (Step 2)</div>
-          <div class="kpi-num" id="kpi-stress" style="color:var(--accent-red)">280.9 MPa</div>
-          <div style="font-size:0.65rem; color:var(--accent-red);" id="kpi-crack">⚠ 裂紋萌生高風險</div>
+        <div class="kpi-box">
+          <div style="font-size:0.68rem; color:var(--muted);">最大主拉應力 (Step 2)</div>
+          <div class="kpi-num" id="side-stress" style="color:var(--red)">280.9 MPa</div>
+          <div style="font-size:0.62rem; color:var(--red);" id="side-crack-status">⚠ 裂紋萌生高風險</div>
         </div>
       </div>
 
-      <div class="sec-head">
-        <span>數位雙生孔徑校準 (Table 4.3 & 4.4)</span>
-        <button onclick="openModal(4)">比對結果</button>
-      </div>
-      <div class="card-box" style="line-height:1.6;">
-        <div style="display:flex; justify-content:space-between;"><span>實測入口直徑 $D_{top}$：</span><strong>288.8 µm</strong></div>
-        <div style="display:flex; justify-content:space-between;"><span>模型預測直徑：</span><strong id="sim-dia" style="color:var(--accent-cyan)">289.5 µm</strong></div>
-        <div style="display:flex; justify-content:space-between;"><span>相對誤差率 (Error)：</span><strong id="sim-err" style="color:var(--accent-green)">+0.24% (高度吻合)</strong></div>
+      <!-- 虛實校正成績單 -->
+      <div class="kpi-box" style="text-align:left; font-size:0.72rem; line-height:1.6;">
+        <div style="font-weight:700; color:var(--cyan); margin-bottom:0.2rem;">虛實幾何校準 (Table 4.3 & 4.4)</div>
+        <div>實測入口孔徑 $D_{top}$：288.8 µm</div>
+        <div>雙生預測孔徑：<strong id="side-dia" style="color:var(--cyan)">289.5 µm</strong></div>
+        <div>幾何誤差率：<strong id="side-err" style="color:var(--green)">+0.24% (收斂)</strong></div>
       </div>
 
-      <div class="sec-head">
-        <span>多維量測實體檢驗成績單</span>
-        <button onclick="openModal(3)">檢驗作法</button>
-      </div>
-      <table class="compact-table">
-        <thead>
-          <tr><th>檢驗項目</th><th>論文實測真實數值</th><th>狀態判定</th></tr>
-        </thead>
+      <!-- 多維檢驗實體數據 -->
+      <table class="data-table">
+        <thead><tr><th>檢驗項目</th><th>論文實測數值</th><th>判定</th></tr></thead>
         <tbody>
-          <tr><td>微孔陣列孔距</td><td>均值 200.025 µm (目標 200)</td><td style="color:var(--accent-green)">極高精確度</td></tr>
-          <tr><td>表面粗糙度 Sa</td><td>0.013 µm (未受熱傷)</td><td style="color:var(--accent-green)">冷加工特性</td></tr>
-          <tr><td>孔壁傾斜角 θv</td><td>80.41° (排除比例失真)</td><td style="color:var(--accent-green)">正錐度可控</td></tr>
-          <tr><td>EDS 元素成分</td><td>O:47.9%, B:37.9%, Si:9.6%</td><td style="color:var(--accent-green)">基材無污染</td></tr>
-          <tr><td>拉曼特徵峰</td><td>477, 1096 cm⁻¹ (無晶化)</td><td style="color:var(--accent-green)">非晶結構保持</td></tr>
+          <tr><td>微孔陣列孔距</td><td>均值 200.025 µm (目標 200)</td><td style="color:var(--green)">極高重複性</td></tr>
+          <tr><td>表面粗糙度 Sa</td><td>0.013 µm (未受熱傷)</td><td style="color:var(--green)">冷加工特性</td></tr>
+          <tr><td>孔壁傾斜角 θv</td><td>80.41° (排除比例失真)</td><td style="color:var(--green)">正錐度可控</td></tr>
+          <tr><td>EDS 元素組成</td><td>O:47.9%, B:37.9%, Si:9.6%</td><td style="color:var(--green)">純淨無污染</td></tr>
+          <tr><td>拉曼特徵峰</td><td>477, 1096 cm⁻¹ (無晶化)</td><td style="color:var(--green)">非晶結構保持</td></tr>
         </tbody>
       </table>
 
-      <div class="sec-head">
-        <span>破壞預警與決策輸出 (Decision)</span>
-        <button onclick="openModal(6)">Rankine 準則</button>
+      <!-- 破壞預警決策 -->
+      <div id="side-decision" style="background:rgba(16, 185, 129, 0.08); border-left:3px solid var(--green); padding:0.5rem; border-radius:0 4px 4px 0; font-size:0.72rem; line-height:1.5;">
+        ✔ <strong>Rankine 準則判定</strong>：孔徑誤差收斂在 1% 內，冷卻期拉應力未突破破壞極限，判定為安全加工視窗[cite: 245]。
       </div>
-      <div id="decision-alert" class="formula-box" style="border-left-color:var(--accent-green); background:rgba(16, 185, 129, 0.08);">
-        ✔ <strong>閉環校正已收斂</strong>：孔徑誤差低於 1%，殘留拉應力未突破極限，判定為安全加工視窗。
-      </div>
-    </aside>
-  </main>
-
-  <!-- 作法詳細說明彈窗 Modal -->
-  <div class="modal-overlay" id="infoModal">
-    <div class="modal-card">
-      <div class="modal-top">
-        <h2 id="modal-title" style="color:var(--accent-cyan); font-size:1rem;">作法詳細說明</h2>
-        <button class="modal-close" onclick="closeModal()">&times;</button>
-      </div>
-      <div class="modal-body" id="modal-content"></div>
     </div>
   </div>
 
   <script>
     /* =========================================================
-       1. 論文專屬作法資料庫 (依據論文第 1~5 章與附錄)
+       1. Three.js 沉浸式 3D 工業虛擬實驗室構建
        ========================================================= */
-    const stepManuals = {
-      1: {
-        title: "步驟 1：實體機台與試片設定作法 (附錄 B-1 & 3.4 節)",
-        body: `
-          <h3>實體設備規格 (FSMM)</h3>
-          <p>• <strong>機型與載台</strong>：FSMM 飛秒雷射微加工機，配備高精度三軸運動步進載台與水冷散熱系統。</p>
-          <p>• <strong>光學核心</strong>：中心波長 1030 nm，重複頻率 300 kHz–1 MHz，脈衝寬度 < 350 fs，聚焦光斑直徑 < 1.45 µm[cite: 259]。</p>
-          <h3>試片規格與前處理</h3>
-          <p>• <strong>基材</strong>：康寧 EAGLE XG 鹼土硼鋁矽酸鹽玻璃，厚度 0.5 mm，400–800 nm 光學穿透率 > 90%[cite: 161, 204, 205]。</p>
-          <p>• <strong>清潔步驟</strong>：於超音波槽中使用去離子水清洗 15 分鐘並吹乾，緊固於載台中央進行精密顯微對焦[cite: 196, 207, 258]。</p>
-        `
-      },
-      2: {
-        title: "步驟 2：等效體積熱源模型與材料去除作法 (2.2 & 3.4 節)",
-        body: `
-          <h3>高斯光束空間分佈 (2.2.1 節)</h3>
-          <p>聚焦後表面能量分佈滿足高斯函數：$$I(r) = \\frac{2P_{laser}}{\\pi w_0^2} \\exp\\left(-\\frac{2r^2}{w_0^2}\\right)$$[cite: 183]</p>
-          <h3>Beer-Lambert 深度衰減模型 (3.4 節)</h3>
-          <p>光束穿透透明玻璃時能量隨深度呈指數吸收衰減：$$Q(r, z) = \\alpha_{abs} \\frac{2\\eta P(t)}{\\pi r_0^2} \\exp\\left(-\\frac{2r^2}{r_0^2}\\right) \\exp(-\\alpha_{abs} z)$$[cite: 209]</p>
-          <h3>材料氣化移除判定 (3.6 節)</h3>
-          <p>在有限元素模型中設定臨界氣化溫度門檻 $T_{remove} = 2500^\\circ\\text{C}$，局部網格溫度超過此門檻即判定材料氣化移除，形成微孔形貌[cite: 191, 212, 237]。</p>
-        `
-      },
-      3: {
-        title: "步驟 3：多維幾何與材料特性檢驗作法 (4.1 & 4.2 節)",
-        body: `
-          <h3>3D 光學輪廓儀 (KEYENCE VR-6200)</h3>
-          <p>非接觸量測微孔陣列，實測陣列孔距均值為 200.025 µm（設定目標 200 µm），算術平均粗糙度 $S_a = 0.013\\,\\mu\\text{m}$，證明周圍基板維持極高平整度與冷加工優勢[cite: 224, 225, 260]。</p>
-          <h3>孔壁截面角度修正 (4.4.2 節)</h3>
-          <p>因量測軟體畫面水平與垂直軸比例不一致，不可直接採信畫面角度。本研究改以真實座標刻度換算：$$\\theta_s = \\tan^{-1}\\left(\\frac{\\Delta z}{\\Delta x}\\right) = 9.59^\\circ \\quad \\Rightarrow \\quad \\theta_v = 90^\\circ - \\theta_s = 80.41^\\circ$$[cite: 221, 242]</p>
-          <h3>SEM、EDS 與 Raman 光譜檢驗</h3>
-          <p>• <strong>EDS 元素分析</strong>：主要成分為 O (47.89 at%)、B (37.93 at%)、Si (9.64 at%)，確認孔內白色物質純屬熔融再凝固的「重鑄層」，無外來污染[cite: 223, 226, 261]。</p>
-          <p>• <strong>拉曼光譜</strong>：比對未加工基材，特徵峰維持在 477 與 1096 $\\text{cm}^{-1}$，證實加工區域未產生結晶相或異常化學結構相變[cite: 228, 230, 232]。</p>
-        `
-      },
-      4: {
-        title: "步驟 4：數位雙生閉迴路校正作法 (3.7 & 4.3 節)",
-        body: `
-          <h3>迭代校正核心機制</h3>
-          <p>以實測孔徑與模擬孔徑相對誤差作為目標函數：$$Error = \\left|\\frac{Y_{sim} - Y_{exp}}{Y_{exp}}\\right| \\times 100\\%$$[cite: 214]</p>
-          <h3>熱源敏感度調校結論 (表 4.3 ~ 4.6)</h3>
-          <p>• <strong>光束衰減係數 $\\alpha_{beam}$</strong>：最佳選定為 $3.0\\,\\text{mm}^{-1}$。過小時深層能量過高形成倒錐；過大時表層過度集中孔深不足[cite: 238, 239]。</p>
-          <p>• <strong>能量耦合效率 $\\eta$</strong>：最佳選定為 $0.30$。第一版試片孔徑誤差收斂至 <strong>+0.24%</strong>，第二版外推試片誤差控制在 <strong>+3.62%</strong>，證明模型具備外推預測能力[cite: 233, 234, 235, 238]。</p>
-        `
-      },
-      5: {
-        title: "步驟 5：順序耦合熱-力分析作法 (1.5 & 3.5 節)",
-        body: `
-          <h3>兩階段順序耦合 (Sequential Coupling)</h3>
-          <p>• <strong>階段一 (暫態熱傳導)</strong>：在 ABAQUS 載入 DFLUX 副程式，輸入隨溫度變化的比熱 (753~1189 J/kg·K) 與熱傳導係數 (1.058~1.447 W/m·K)，計算出峰值溫度 4383.7°C，將全場溫度歷程輸出為資料檔[cite: 177, 186, 203, 206]。</p>
-          <p>• <strong>階段二 (結構熱應力)</strong>：開啟用於力學分析的分析步，將溫度場檔案直接匯入作為等效熱載荷，求解材料非均勻熱脹冷縮造成的內部殘留應力[cite: 177, 190, 211]。</p>
-        `
-      },
-      6: {
-        title: "步驟 6：微裂紋破壞預警作法 (4.3.4 & 5.1 節)",
-        body: `
-          <h3>殘留熱拉應力成因</h3>
-          <p>加熱時材料受壓；但在冷卻階段，孔壁急遽降溫收縮，而周圍冷玻璃限制其自由收縮，在孔口陡峭過渡區引發向外拉扯的強烈殘留拉應力（高達 <strong>280.9 MPa</strong>）。</p>
-          <h3>Rankine 最大主應力破壞準則</h3>
-          <p>玻璃對拉伸應力極為敏感。當計算之最大主拉應力接近材料極限抗拉強度時，模型標記該處為微裂紋萌生高風險區，指導工程師避開高應力製程視窗[cite: 245]。</p>
-        `
-      }
-    };
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x060913);
 
-    function openModal(stepNum) {
-      const data = stepManuals[stepNum];
-      document.getElementById('modal-title').innerText = data.title;
-      document.getElementById('modal-content').innerHTML = data.body;
-      document.getElementById('infoModal').style.display = 'flex';
-      renderMathInElement(document.getElementById('modal-content'));
-    }
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.localClippingEnabled = true;
+    container.appendChild(renderer.domElement);
 
-    function closeModal() {
-      document.getElementById('infoModal').style.display = 'none';
-    }
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
 
-    function jumpToStep(stepNum) {
-      document.querySelectorAll('.nav-steps .btn-step').forEach((b, i) => {
-        b.classList.toggle('active', i + 1 === stepNum);
-      });
-      openModal(stepNum);
-    }
-
-    /* =========================================================
-       2. 雙分割 Three.js 3D 渲染系統 (物理實體 vs 數位雙生)
-       ========================================================= */
-    const pContainer = document.getElementById('view-physical');
-    const dContainer = document.getElementById('view-digital');
-
-    // 剖面剪切平面
+    // 剖切平面 (Clipping Plane)
     const clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
 
-    // --- 實體場景 (Physical Scene) ---
-    const sceneP = new THREE.Scene();
-    sceneP.background = new THREE.Color(0x0a0f1d);
-    const cameraP = new THREE.PerspectiveCamera(40, pContainer.clientWidth / pContainer.clientHeight, 0.1, 1000);
-    cameraP.position.set(50, 40, 65);
-    const rendererP = new THREE.WebGLRenderer({ antialias: true });
-    rendererP.setSize(pContainer.clientWidth, pContainer.clientHeight);
-    rendererP.localClippingEnabled = true;
-    pContainer.appendChild(rendererP.domElement);
-    const controlsP = new THREE.OrbitControls(cameraP, rendererP.domElement);
-    controlsP.enableDamping = true;
+    // 實驗室整體燈光
+    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+    const mainLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
+    mainLight.position.set(40, 80, 50);
+    scene.add(mainLight);
 
-    // --- 雙生場景 (Digital Twin Scene) ---
-    const sceneD = new THREE.Scene();
-    sceneD.background = new THREE.Color(0x060a14);
-    const cameraD = new THREE.PerspectiveCamera(40, dContainer.clientWidth / dContainer.clientHeight, 0.1, 1000);
-    cameraD.position.copy(cameraP.position);
-    const rendererD = new THREE.WebGLRenderer({ antialias: true });
-    rendererD.setSize(dContainer.clientWidth, dContainer.clientHeight);
-    rendererD.localClippingEnabled = true;
-    dContainer.appendChild(rendererD.domElement);
-    const controlsD = new THREE.OrbitControls(cameraD, rendererD.domElement);
-    controlsD.enableDamping = true;
+    // 實驗室地板與格線
+    const floorGeo = new THREE.PlaneGeometry(200, 200);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x0a101f, roughness: 0.8, metalness: 0.2 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -12;
+    scene.add(floor);
+    const gridHelper = new THREE.GridHelper(200, 50, 0x1e293b, 0x0f172a);
+    gridHelper.position.y = -11.9;
+    scene.add(gridHelper);
 
-    // 相機同步
-    controlsP.addEventListener('change', () => {
-      cameraD.position.copy(cameraP.position);
-      cameraD.quaternion.copy(cameraP.quaternion);
-      cameraD.zoom = cameraP.zoom;
-      cameraD.updateProjectionMatrix();
-    });
-    controlsD.addEventListener('change', () => {
-      cameraP.position.copy(cameraD.position);
-      cameraP.quaternion.copy(cameraD.quaternion);
-      cameraP.zoom = cameraD.zoom;
-      cameraP.updateProjectionMatrix();
-    });
+    /* =========================================================
+       2. 五大工位設備 3D 建模 (Procedural Machinery)
+       ========================================================= */
+    const raycastInteractables = []; // 可點擊互動之 3D 物件清單
 
-    // 共同燈光
-    function setupLights(sc) {
-      sc.add(new THREE.AmbientLight(0xffffff, 0.7));
-      const dl = new THREE.DirectionalLight(0x38bdf8, 1.2);
-      dl.position.set(30, 50, 40);
-      sc.add(dl);
+    // 通用實驗工作桌生成器
+    function createWorkbench(x, z) {
+      const benchGroup = new THREE.Group();
+      benchGroup.position.set(x, -12, z);
+      const top = new THREE.Mesh(new THREE.BoxGeometry(32, 2, 22), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3 }));
+      top.position.y = 8;
+      benchGroup.add(top);
+      for (let dx of [-14, 14]) {
+        for (let dz of [-9, 9]) {
+          const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 8, 16), new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.6 }));
+          leg.position.set(dx, 4, dz);
+          benchGroup.add(leg);
+        }
+      }
+      scene.add(benchGroup);
+      return benchGroup;
     }
-    setupLights(sceneP);
-    setupLights(sceneD);
 
-    // 1. 實體基板 (玻璃晶圓)
-    const glassGeo = new THREE.BoxGeometry(50, 16, 50);
+    // -------------------------------------------------------------
+    // 【工位 1】：FSMM 飛秒雷射微加工機 (附實體電控箱、旋鈕、手輪、載台)
+    // -------------------------------------------------------------
+    const st1Bench = createWorkbench(-55, 0);
+    const fsmmGroup = new THREE.Group();
+    fsmmGroup.position.set(-55, -2, 0);
+    scene.add(fsmmGroup);
+
+    // 機台防護罩框架
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 });
+    const chamber = new THREE.Mesh(new THREE.BoxGeometry(24, 20, 18), new THREE.MeshPhysicalMaterial({ color: 0x0284c7, transparent: true, opacity: 0.25, roughness: 0.1, transmission: 0.8 }));
+    chamber.position.set(0, 10, 0);
+    fsmmGroup.add(chamber);
+
+    // XYZ 運動載台
+    const stageGeo = new THREE.BoxGeometry(16, 2, 14);
+    const stageMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.2 });
+    const stage = new THREE.Mesh(stageGeo, stageMat);
+    stage.position.set(0, 1, 0);
+    fsmmGroup.add(stage);
+
+    // EAGLE XG 玻璃工件 (放置於載台中央)
+    const glassGeo = new THREE.BoxGeometry(10, 2, 10);
     const glassMatP = new THREE.MeshPhysicalMaterial({
       color: 0x38bdf8,
       transparent: true,
       opacity: 0.45,
-      roughness: 0.1,
-      transmission: 0.85,
+      roughness: 0.05,
+      transmission: 0.9,
       ior: 1.51,
-      clippingPlanes: [clipPlane],
-      clipShadows: true
+      clippingPlanes: [clipPlane]
     });
     const glassP = new THREE.Mesh(glassGeo, glassMatP);
-    glassP.position.set(0, -8, 0);
-    sceneP.add(glassP);
+    glassP.position.set(0, 2.8, 0);
+    glassP.userData = { type: "workpiece" };
+    fsmmGroup.add(glassP);
+    raycastInteractables.push(glassP);
 
-    // 2. 實體機台顯微物鏡 (Lens Column)
-    const lensGeo = new THREE.CylinderGeometry(5, 7, 18, 32);
-    const lensMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.2 });
-    const lens = new THREE.Mesh(lensGeo, lensMat);
-    lens.position.set(0, 18, 0);
-    sceneP.add(lens);
+    // 聚焦物鏡組 (可由手輪驅動 Z 軸上下移動)
+    const lensGroup = new THREE.Group();
+    lensGroup.position.set(0, 14, 0);
+    fsmmGroup.add(lensGroup);
+    const lensBody = new THREE.Mesh(new THREE.CylinderGeometry(2, 3, 10, 32), new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8, roughness: 0.2 }));
+    lensGroup.add(lensBody);
 
-    // 3. 實體雷射光束 (高聚焦光錐)
-    const beamGeo = new THREE.ConeGeometry(3.5, 18, 32, 1, true);
+    // 調焦手輪 (可點擊旋轉改變聚焦狀態)
+    const focusKnob = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 0.8, 24), new THREE.MeshStandardMaterial({ color: 0xf97316, metalness: 0.5 }));
+    focusKnob.rotation.z = Math.PI / 2;
+    focusKnob.position.set(3, 0, 0);
+    focusKnob.userData = { type: "focusKnob", name: "微米級調焦手輪 (點擊旋轉對焦)" };
+    lensGroup.add(focusKnob);
+    raycastInteractables.push(focusKnob);
+
+    // 實體雷射電源電控箱 (放置於桌邊)
+    const pwrBox = new THREE.Mesh(new THREE.BoxGeometry(7, 8, 9), new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4 }));
+    pwrBox.position.set(-13, 4, 0);
+    fsmmGroup.add(pwrBox);
+
+    // 電源箱功率旋鈕 (可點擊旋轉調整雷射功率)
+    const pwrKnob = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.6, 24), new THREE.MeshStandardMaterial({ color: 0x38bdf8, metalness: 0.6 }));
+    pwrKnob.rotation.x = Math.PI / 2;
+    pwrKnob.position.set(-9.3, 5, 0);
+    pwrKnob.userData = { type: "pwrKnob", name: "雷射功率旋鈕 (點擊微調功率)" };
+    fsmmGroup.add(pwrKnob);
+    raycastInteractables.push(pwrKnob);
+
+    // 雷射快門安全實體按鈕
+    const shutterBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.5, 24), new THREE.MeshStandardMaterial({ color: 0xef4444 }));
+    shutterBtn.rotation.x = Math.PI / 2;
+    shutterBtn.position.set(-9.3, 2.5, 0);
+    shutterBtn.userData = { type: "shutterBtn", name: "雷射快門安全開關 (點擊開關)" };
+    fsmmGroup.add(shutterBtn);
+    raycastInteractables.push(shutterBtn);
+
+    // 雷射光錐 (向下聚焦)
+    const beamGeo = new THREE.ConeGeometry(2, 8, 32, 1, true);
     beamGeo.rotateX(Math.PI);
-    const beamMatP = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
-    const laserBeamP = new THREE.Mesh(beamGeo, beamMatP);
-    laserBeamP.position.set(0, 9, 0);
-    sceneP.add(laserBeamP);
+    const beamMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
+    const laserBeam = new THREE.Mesh(beamGeo, beamMat);
+    laserBeam.position.set(0, -9, 0);
+    lensGroup.add(laserBeam);
 
-    // 4. 虛擬有限元素網格區塊 (ABAQUS Mesh Block)
-    const meshMatD = new THREE.MeshBasicMaterial({
-      color: 0x1e293b,
-      wireframe: true,
-      clippingPlanes: [clipPlane]
-    });
-    const blockD = new THREE.Mesh(glassGeo, meshMatD);
-    blockD.position.copy(glassP.position);
-    sceneD.add(blockD);
-
-    // 5. 虛擬熱影響等溫球體 (Beer-Lambert 熱雲)
-    const thermalMatD = new THREE.MeshBasicMaterial({
-      color: 0xf97316,
-      transparent: true,
-      opacity: 0.5,
-      wireframe: true,
-      clippingPlanes: [clipPlane]
-    });
-    const thermalSphereD = new THREE.Mesh(new THREE.SphereGeometry(9, 16, 16), thermalMatD);
-    thermalSphereD.position.set(0, -4, 0);
-    sceneD.add(thermalSphereD);
-
-    // 6. 微孔幾何 (實體與雙生共用成型)
-    let holeP, holeD;
-    function updateHoleGeometries(topR, depth) {
-      if (holeP) sceneP.remove(holeP);
-      if (holeD) sceneD.remove(holeD);
-
-      const geom = new THREE.ConeGeometry(topR, depth, 32, 1, true);
-      geom.rotateX(Math.PI);
-
-      const matP = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.5, side: THREE.DoubleSide, clippingPlanes: [clipPlane] });
-      holeP = new THREE.Mesh(geom, matP);
-      holeP.position.set(0, -depth / 2, 0);
-      sceneP.add(holeP);
-
-      const matD = new THREE.MeshBasicMaterial({ color: 0xef4444, wireframe: true, side: THREE.DoubleSide, clippingPlanes: [clipPlane] });
-      holeD = new THREE.Mesh(geom, matD);
-      holeD.position.set(0, -depth / 2, 0);
-      sceneD.add(holeD);
-    }
-    updateHoleGeometries(7, 12);
-
-    // 7. 電漿氣化噴濺粒子 (左側實體專用)
-    const pCount = 150;
+    // 電漿氣化微噴濺粒子
+    const pCount = 100;
     const pGeo = new THREE.BufferGeometry();
     const pPos = new Float32Array(pCount * 3);
     const pVels = [];
     for (let i = 0; i < pCount; i++) {
-      pPos[i * 3] = 0; pPos[i * 3 + 1] = 0; pPos[i * 3 + 2] = 0;
-      pVels.push({ x: (Math.random() - 0.5) * 0.7, y: Math.random() * 1.8 + 0.4, z: (Math.random() - 0.5) * 0.7, life: Math.random() });
+      pPos[i*3] = 0; pPos[i*3+1] = 0; pPos[i*3+2] = 0;
+      pVels.push({ x: (Math.random()-0.5)*0.5, y: Math.random()*1.2 + 0.3, z: (Math.random()-0.5)*0.5, life: Math.random() });
     }
     pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-    const pMat = new THREE.PointsMaterial({ color: 0xf97316, size: 0.55, transparent: true, opacity: 0.85 });
-    const pSystem = new THREE.Points(pGeo, pMat);
-    sceneP.add(pSystem);
+    const pMat = new THREE.PointsMaterial({ color: 0xf97316, size: 0.45, transparent: true, opacity: 0.85 });
+    const plasmaParticles = new THREE.Points(pGeo, pMat);
+    plasmaParticles.position.set(0, 3.8, 0);
+    fsmmGroup.add(plasmaParticles);
+
+    // -------------------------------------------------------------
+    // 【工位 2】：KEYENCE VR-6200 3D 光學輪廓儀 (附實機 3D 彩色螢幕)
+    // -------------------------------------------------------------
+    const st2Bench = createWorkbench(-25, 0);
+    const vrGroup = new THREE.Group();
+    vrGroup.position.set(-25, -2, 0);
+    scene.add(vrGroup);
+
+    // VR-6200 儀器主機座
+    const vrBase = new THREE.Mesh(new THREE.BoxGeometry(16, 8, 14), new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.2 }));
+    vrBase.position.set(0, 4, 0);
+    vrGroup.add(vrBase);
+
+    // 物鏡旋轉轉盤 (可點擊切換 12x / 40x / 160x)
+    const nosepiece = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 2, 24), new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.7 }));
+    nosepiece.position.set(0, 11, 2);
+    nosepiece.userData = { type: "vrNosepiece", name: "物鏡轉盤 (點擊切換量測倍率)" };
+    vrGroup.add(nosepiece);
+    raycastInteractables.push(nosepiece);
+
+    // 動態儀器 LCD 螢幕畫布 (即時繪製圖 4.2 3D 彩色高度圖)
+    const vrCanvas = document.createElement('canvas');
+    vrCanvas.width = 512; vrCanvas.height = 384;
+    const vrCtx = vrCanvas.getContext('2d');
+    function drawVRScreen() {
+      vrCtx.fillStyle = '#0f172a'; vrCtx.fillRect(0, 0, 512, 384);
+      vrCtx.fillStyle = '#38bdf8'; vrCtx.font = 'bold 20px sans-serif';
+      vrCtx.fillText('KEYENCE VR-6200 3D 光學表面地形分析', 25, 35);
+      
+      // 繪製模擬彩色高度圓圈 (圖 4.2: 紅色基底 -> 藍黑微孔凹陷)
+      const grad = vrCtx.createRadialGradient(256, 200, 10, 256, 200, 130);
+      grad.addColorStop(0, '#020617'); // 孔底凹陷 -2.534 um
+      grad.addColorStop(0.35, '#0284c7');
+      grad.addColorStop(0.65, '#eab308');
+      grad.addColorStop(0.85, '#ef4444'); // 孔緣紅區
+      grad.addColorStop(1, '#f97316'); // 表面基材
+      vrCtx.fillStyle = grad;
+      vrCtx.beginPath(); vrCtx.arc(256, 200, 130, 0, Math.PI * 2); vrCtx.fill();
+
+      // 量測數值標註 (Table 4.1 & 4.2)
+      vrCtx.fillStyle = '#ffffff'; vrCtx.font = '16px monospace';
+      vrCtx.fillText('陣列孔距均值: 200.025 µm (目標: 200)', 30, 340);
+      vrCtx.fillText('表面粗糙度 Sa: 0.013 µm | 錐度角 θv: 80.41°', 30, 365);
+    }
+    drawVRScreen();
+    const vrTexture = new THREE.CanvasTexture(vrCanvas);
+    const vrScreen = new THREE.Mesh(new THREE.PlaneGeometry(12, 9), new THREE.MeshBasicMaterial({ map: vrTexture }));
+    vrScreen.position.set(0, 14, -6);
+    vrGroup.add(vrScreen);
+
+    // -------------------------------------------------------------
+    // 【工位 3】：Thermo Fisher Phenom XL SEM / EDS (附真空腔與能譜分析幕)
+    // -------------------------------------------------------------
+    const st3Bench = createWorkbench(5, 0);
+    const semGroup = new THREE.Group();
+    semGroup.position.set(5, -2, 0);
+    scene.add(semGroup);
+
+    // SEM 圓柱真空電子槍機身
+    const semColumn = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 18, 32), new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.6, roughness: 0.3 }));
+    semColumn.position.set(0, 10, 0);
+    semGroup.add(semColumn);
+
+    // 樣品載入進樣抽屜 (可點擊開闔)
+    const semDrawer = new THREE.Mesh(new THREE.BoxGeometry(8, 3, 5), new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8 }));
+    semDrawer.position.set(0, 3, 5);
+    semDrawer.userData = { type: "semDrawer", name: "SEM 真空樣品抽屜 (點擊進樣/抽氣)" };
+    semGroup.add(semDrawer);
+    raycastInteractables.push(semDrawer);
+
+    // SEM/EDS 儀器螢幕 (即時繪製圖 4.6 SEM 灰階形貌與圖 4.7 EDS 元素佔比)
+    const semCanvas = document.createElement('canvas');
+    semCanvas.width = 512; semCanvas.height = 384;
+    const semCtx = semCanvas.getContext('2d');
+    function drawSEMScreen() {
+      semCtx.fillStyle = '#0a0f1d'; semCtx.fillRect(0, 0, 512, 384);
+      semCtx.fillStyle = '#10b981'; semCtx.font = 'bold 20px sans-serif';
+      semCtx.fillText('Phenom XL SEM/EDS 顯微形貌與元素能譜', 25, 35);
+
+      // 繪製 SEM 灰階微孔 (圖 4.6)
+      semCtx.fillStyle = '#334155'; semCtx.fillRect(30, 60, 200, 200);
+      const semGrad = semCtx.createRadialGradient(130, 160, 10, 130, 160, 75);
+      semGrad.addColorStop(0, '#020617'); semGrad.addColorStop(0.85, '#94a3b8'); semGrad.addColorStop(1, '#e2e8f0');
+      semCtx.fillStyle = semGrad;
+      semCtx.beginPath(); semCtx.arc(130, 160, 75, 0, Math.PI * 2); semCtx.fill();
+
+      // 繪製 EDS 元素能譜柱狀圖 (圖 4.7 真實比例)
+      semCtx.fillStyle = '#38bdf8'; semCtx.font = '14px sans-serif';
+      semCtx.fillText('[EDS 元素定量能譜 (無外來污染)]', 255, 80);
+      const elements = [
+        { name: "O (氧)", at: "47.89%", h: 100, col: "#38bdf8" },
+        { name: "B (硼)", at: "37.93%", h: 80, col: "#f97316" },
+        { name: "Si (矽)", at: "9.64%", h: 35, col: "#10b981" },
+        { name: "Al (鋁)", at: "3.52%", h: 18, col: "#a855f7" }
+      ];
+      elements.forEach((el, i) => {
+        semCtx.fillStyle = el.col;
+        semCtx.fillRect(260 + i * 55, 230 - el.h, 35, el.h);
+        semCtx.fillStyle = '#ffffff'; semCtx.font = '12px sans-serif';
+        semCtx.fillText(el.name.split(' ')[0], 265 + i * 55, 248);
+        semCtx.fillText(el.at, 260 + i * 55, 225 - el.h);
+      });
+      semCtx.fillStyle = '#94a3b8'; semCtx.font = '13px monospace';
+      semCtx.fillText('判定: 孔內白色帶狀區域純屬玻璃基材重鑄層', 30, 350);
+    }
+    drawSEMScreen();
+    const semTexture = new THREE.CanvasTexture(semCanvas);
+    const semScreen = new THREE.Mesh(new THREE.PlaneGeometry(12, 9), new THREE.MeshBasicMaterial({ map: semTexture }));
+    semScreen.position.set(0, 14, -6);
+    semGroup.add(semScreen);
+
+    // -------------------------------------------------------------
+    // 【工位 4】：顯微拉曼光譜檢測台 (Raman Spectrometer)
+    // -------------------------------------------------------------
+    const st4Bench = createWorkbench(35, 0);
+    const ramanGroup = new THREE.Group();
+    ramanGroup.position.set(35, -2, 0);
+    scene.add(ramanGroup);
+
+    // 拉曼機身與 532 nm 激發雷射頭
+    const ramanBody = new THREE.Mesh(new THREE.BoxGeometry(14, 12, 14), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3 }));
+    ramanBody.position.set(0, 6, 0);
+    ramanGroup.add(ramanBody);
+    const ramanLaserHead = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 4, 16), new THREE.MeshStandardMaterial({ color: 0x10b981, metalness: 0.8 }));
+    ramanLaserHead.position.set(0, 13, 3);
+    ramanLaserHead.userData = { type: "ramanHead", name: "拉曼激發雷射頭 (點擊切換量測位置 1/2/3)" };
+    ramanGroup.add(ramanLaserHead);
+    raycastInteractables.push(ramanLaserHead);
+
+    // 拉曼光譜 LCD 螢幕 (即時繪製圖 4.8~4.11 曲線)
+    const ramanCanvas = document.createElement('canvas');
+    ramanCanvas.width = 512; ramanCanvas.height = 384;
+    const ramanCtx = ramanCanvas.getContext('2d');
+    function drawRamanScreen() {
+      ramanCtx.fillStyle = '#090d1a'; ramanCtx.fillRect(0, 0, 512, 384);
+      ramanCtx.fillStyle = '#38bdf8'; ramanCtx.font = 'bold 20px sans-serif';
+      ramanCtx.fillText('微區拉曼光譜比對 (Raman Shift)', 25, 35);
+
+      // 繪製座標軸
+      ramanCtx.strokeStyle = '#334155'; ramanCtx.lineWidth = 2;
+      ramanCtx.beginPath(); ramanCtx.moveTo(50, 310); ramanCtx.lineTo(470, 310); ramanCtx.stroke();
+      ramanCtx.fillStyle = '#94a3b8'; ramanCtx.font = '12px monospace';
+      ramanCtx.fillText('0', 50, 330); ramanCtx.fillText('520 (Si)', 140, 330);
+      ramanCtx.fillText('1000', 250, 330); ramanCtx.fillText('2500 cm⁻¹', 410, 330);
+
+      // 繪製波峰曲線 (圖 4.8 實測峰: 477, 1096 cm^-1)
+      ramanCtx.strokeStyle = '#f97316'; ramanCtx.lineWidth = 3;
+      ramanCtx.beginPath();
+      ramanCtx.moveTo(50, 260);
+      ramanCtx.quadraticCurveTo(120, 160, 140, 240); // 477 cm^-1 峰
+      ramanCtx.quadraticCurveTo(240, 190, 270, 250); // 1096 cm^-1 峰
+      ramanCtx.lineTo(470, 270);
+      ramanCtx.stroke();
+
+      // 標註 Si 520 參考無尖峰
+      ramanCtx.fillStyle = '#10b981'; ramanCtx.fillText('✔ 520 cm⁻¹ 無晶矽尖峰 (維持玻璃非晶結構)', 50, 90);
+      ramanCtx.fillText('✔ 特徵峰 477, 1096 cm⁻¹ 吻合未加工玻璃基材', 50, 115);
+    }
+    drawRamanScreen();
+    const ramanTexture = new THREE.CanvasTexture(ramanCanvas);
+    const ramanScreen = new THREE.Mesh(new THREE.PlaneGeometry(12, 9), new THREE.MeshBasicMaterial({ map: ramanTexture }));
+    ramanScreen.position.set(0, 15, -6);
+    ramanGroup.add(ramanScreen);
+
+    // -------------------------------------------------------------
+    // 【工位 5】：ABAQUS CAE 數位雙生工作站 (全息網格、雙螢幕終端)
+    // -------------------------------------------------------------
+    const st5Bench = createWorkbench(65, 0);
+    const caeGroup = new THREE.Group();
+    caeGroup.position.set(65, -2, 0);
+    scene.add(caeGroup);
+
+    // 雙生工作站主機與雙螢幕
+    const monitor1 = new THREE.Mesh(new THREE.BoxGeometry(10, 7, 0.8), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+    monitor1.position.set(-6, 12, 2); monitor1.rotation.y = 0.2;
+    caeGroup.add(monitor1);
+    const monitor2 = new THREE.Mesh(new THREE.BoxGeometry(10, 7, 0.8), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+    monitor2.position.set(6, 12, 2); monitor2.rotation.y = -0.2;
+    caeGroup.add(monitor2);
+
+    // 全息投影台 (Holographic CAE Twin Grid)
+    const holoBase = new THREE.Mesh(new THREE.CylinderGeometry(7, 8, 2, 32), new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.8 }));
+    holoBase.position.set(0, 8, 4);
+    caeGroup.add(holoBase);
+
+    // 數位雙生有限元素網格方塊 (Model B 10 um 基準)
+    const caeBlock = new THREE.Mesh(glassGeo, new THREE.MeshBasicMaterial({ color: 0x1e293b, wireframe: true, clippingPlanes: [clipPlane] }));
+    caeBlock.position.set(0, 11, 4);
+    caeGroup.add(caeBlock);
+
+    // 暫態熱源等溫雲球體
+    const thermalSphere = new THREE.Mesh(new THREE.SphereGeometry(4.5, 16, 16), new THREE.MeshBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.5, wireframe: true, clippingPlanes: [clipPlane] }));
+    thermalSphere.position.set(0, 11, 4);
+    caeGroup.add(thermalSphere);
+
+    // 雙生虛擬微孔幾何
+    let holeCaeMesh;
+    function updateCaeHole(r, depth) {
+      if (holeCaeMesh) caeGroup.remove(holeCaeMesh);
+      const g = new THREE.ConeGeometry(r, depth, 32, 1, true);
+      g.rotateX(Math.PI);
+      holeCaeMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xef4444, wireframe: true, side: THREE.DoubleSide, clippingPlanes: [clipPlane] }));
+      holeCaeMesh.position.set(0, 11 - depth/2, 4);
+      caeGroup.add(holeCaeMesh);
+    }
+    updateCaeHole(3.2, 5.5);
 
     /* =========================================================
-       3. 數值綁定與動態更新邏輯
+       3. 物理下鑽、真實剖切與光斑聚焦動態
        ========================================================= */
     let isFiring = true;
-    let isClipping = true;
+    let isProbeTool = false;
+    let isSlicingTool = true;
+    let focusOffset = 0.0; // 調焦位移 (0.0 為完美焦平面)
+    let currentPower = 1.2; // 預設 1.2 W
+    let drillDepthRatio = 0.0; // 0.0 ~ 1.0 (非切穿，最大為盲孔深 5.492 um)
 
-    const pavgSlider = document.getElementById('slider-pavg');
-    const freqSlider = document.getElementById('slider-freq');
-    const speedSlider = document.getElementById('slider-speed');
-    const etaSlider = document.getElementById('slider-eta');
-    const alphaSlider = document.getElementById('slider-alpha');
-    const sliceSlider = document.getElementById('slider-slice');
+    // 實體微孔凹坑幾何 (物理端)
+    let holePhysicalMesh;
+    function updatePhysicalHole(r, depth) {
+      if (holePhysicalMesh) fsmmGroup.remove(holePhysicalMesh);
+      const g = new THREE.ConeGeometry(r, depth, 32, 1, true);
+      g.rotateX(Math.PI);
+      holePhysicalMesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.6, side: THREE.DoubleSide, clippingPlanes: [clipPlane] }));
+      holePhysicalMesh.position.set(0, 2.8 - depth/2, 0);
+      fsmmGroup.add(holePhysicalMesh);
+    }
+    updatePhysicalHole(3.2, 5.5);
 
-    function refreshDashboard() {
-      const pavg = parseFloat(pavgSlider.value);
-      const freq = parseFloat(freqSlider.value);
-      const speed = parseFloat(speedSlider.value);
-      const eta = parseFloat(etaSlider.value);
-      const alpha = parseFloat(alphaSlider.value);
-      const slice = parseFloat(sliceSlider.value);
+    function computePhysicsAndCAE() {
+      // 判斷是否精準聚焦 (腰身公式效應)
+      const isFocused = Math.abs(focusOffset) < 0.2;
+      const effectivePower = isFocused ? currentPower : currentPower * 0.15; // 散焦能量密度暴跌
 
-      document.getElementById('disp-pavg').innerText = pavg.toFixed(1) + ' W';
-      document.getElementById('disp-freq').innerText = freq + ' kHz';
-      document.getElementById('disp-speed').innerText = speed + ' mm/s';
-      document.getElementById('disp-eta').innerText = eta.toFixed(2);
-      document.getElementById('disp-alpha').innerText = alpha.toFixed(1) + ' mm⁻¹';
-      document.getElementById('disp-slice').innerText = slice + '% ' + (slice === 50 ? '(正中剖面)' : '');
-
-      // 物理方程計算 (2.1 節)
-      const ep = (pavg / (freq * 1000)) * 1e6; // µJ
-      const dp = (speed / (freq * 1000)) * 1000; // µm
-      const w0 = 1.45; // 焦點半徑約 1.45um
-      let op = (1 - (dp / w0)) * 100;
-      if (op < 0) op = 0;
-
-      document.getElementById('out-ep').innerText = ep.toFixed(2) + ' µJ';
-      document.getElementById('out-dp').innerText = dp.toFixed(3) + ' µm';
-      document.getElementById('out-op').innerText = op.toFixed(2) + '%';
-
-      // 順序耦合求解預測 (基準：4383.7°C, 280.9 MPa)
-      const temp = 4383.7 * (pavg / 1.2) * (eta / 0.3);
-      const stress = 280.9 * (pavg / 1.2) * (eta / 0.3) * (alpha / 3.0);
-      
-      // 數位雙生孔徑誤差 (基準：實測 288.8 um, 模擬 289.5 um)
-      const topDia = 288.8 * Math.sqrt(eta / 0.3) * (1.0 + (3.0 - alpha) * 0.04);
+      // 順序耦合求解 (Model B 基準: 4383.7°C, 280.9 MPa)
+      const temp = 4383.7 * (effectivePower / 1.2);
+      const stress = 280.9 * (effectivePower / 1.2);
+      const topDia = 288.8 * Math.sqrt(effectivePower / 1.2);
       const err = ((topDia - 288.8) / 288.8) * 100;
 
-      document.getElementById('kpi-temp').innerText = temp.toFixed(1) + ' °C';
-      document.getElementById('kpi-stress').innerText = stress.toFixed(1) + ' MPa';
-      document.getElementById('sim-dia').innerText = topDia.toFixed(1) + ' µm';
-      
-      const errEl = document.getElementById('sim-err');
+      // 側邊抽屜數據更新
+      document.getElementById('side-temp').innerText = temp.toFixed(1) + ' °C';
+      document.getElementById('side-stress').innerText = stress.toFixed(1) + ' MPa';
+      document.getElementById('side-dia').innerText = topDia.toFixed(1) + ' µm';
+      const errEl = document.getElementById('side-err');
       errEl.innerText = (err > 0 ? '+' : '') + err.toFixed(2) + '%';
-      errEl.style.color = Math.abs(err) < 1.0 ? 'var(--accent-green)' : 'var(--accent-orange)';
+      errEl.style.color = Math.abs(err) < 1.0 ? 'var(--green)' : 'var(--orange)';
 
-      // 裂紋判定 (Rankine 最大主應力準則)
-      const crackEl = document.getElementById('kpi-crack');
-      const alertBox = document.getElementById('decision-alert');
+      // 裂紋判定 (Rankine 準則門檻 290 MPa)
+      const crackEl = document.getElementById('side-crack-status');
+      const decBox = document.getElementById('side-decision');
       if (stress > 295.0) {
         crackEl.innerText = '⚠ 超標：微裂紋萌生 (崩角)';
-        crackEl.style.color = 'var(--accent-red)';
-        alertBox.innerHTML = `❌ <strong>裂紋高風險</strong>：拉應力 (${stress.toFixed(1)} MPa) 超出 EAGLE XG 抗拉極限，請降低功率或提高光束衰減率。`;
-        alertBox.style.borderLeftColor = 'var(--accent-red)';
-        alertBox.style.background = 'rgba(239, 68, 68, 0.08)';
+        crackEl.style.color = 'var(--red)';
+        decBox.innerHTML = `❌ <strong>裂紋高風險</strong>：拉應力 (${stress.toFixed(1)} MPa) 超出 EAGLE XG 破壞門檻，建議降低功率。`;
+        decBox.style.borderLeftColor = 'var(--red)';
+        decBox.style.background = 'rgba(239, 68, 68, 0.08)';
       } else {
         crackEl.innerText = '✔ 安全：處於容許應力窗';
-        crackEl.style.color = 'var(--accent-green)';
-        alertBox.innerHTML = `✔ <strong>最佳參數收斂</strong>：孔徑誤差 ${Math.abs(err).toFixed(2)}% < 1%，熱應力受控於 280 MPa 內，建議送交機台量產。`;
-        alertBox.style.borderLeftColor = 'var(--accent-green)';
-        alertBox.style.background = 'rgba(16, 185, 129, 0.08)';
+        crackEl.style.color = 'var(--green)';
+        decBox.innerHTML = `✔ <strong>最佳參數收斂</strong>：孔徑誤差 ${Math.abs(err).toFixed(2)}% < 1%，熱應力受控於 280 MPa 內，建議送交機台量產。`;
+        decBox.style.borderLeftColor = 'var(--green)';
+        decBox.style.background = 'rgba(16, 185, 129, 0.08)';
       }
 
-      // 3D 幾何更新
-      const r3d = 7 * Math.sqrt(eta / 0.3);
-      const d3d = 12 * (3.0 / alpha) * (pavg / 1.2);
-      updateHoleGeometries(r3d, d3d);
-      thermalSphereD.scale.set(r3d / 6, d3d / 8, r3d / 6);
+      // HUD 狀態更新
+      const hudStatus = document.getElementById('hud-status');
+      if (!isFocused) {
+        hudStatus.innerText = "⚠ 物鏡散焦失焦中 (能量密度過低無法成孔，請點調焦手輪)";
+        hudStatus.style.color = "var(--orange)";
+      } else {
+        hudStatus.innerText = `● 焦平面對焦完成 (功率 ${currentPower.toFixed(1)} W | 盲孔氣化推進中)`;
+        hudStatus.style.color = "var(--green)";
+      }
 
-      // 剖開滑桿
-      clipPlane.constant = (slice - 50) * 0.5;
+      // 更新微孔大小與 CAE 熱影響區
+      const r = 3.2 * (effectivePower / 1.2);
+      const maxBlindDepth = 5.5 * (effectivePower / 1.2); // 盲孔深度受限，不切穿
+      const activeDepth = Math.max(0.5, drillDepthRatio * maxBlindDepth);
+      updatePhysicalHole(r, activeDepth);
+      updateCaeHole(r, activeDepth);
+      thermalSphere.scale.set(r / 3, activeDepth / 4, r / 3);
     }
 
-    [pavgSlider, freqSlider, speedSlider, etaSlider, alphaSlider, sliceSlider].forEach(s => {
-      s.addEventListener('input', refreshDashboard);
-    });
+    /* =========================================================
+       4. 3D 原位滑鼠/手勢點擊旋鈕與工位互動 (Raycasting)
+       ========================================================= */
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const tag3d = document.getElementById('tag3d');
 
-    function toggleFire() {
+    function onPointerDown(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const x = event.clientX || (event.touches && event.touches[0].clientX);
+      const y = event.clientY || (event.touches && event.touches[0].clientY);
+      if (!x || !y) return;
+
+      mouse.x = ((x - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((y - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+
+      // 若啟動測溫探針工具
+      if (isProbeTool) {
+        const hits = raycaster.intersectObjects([glassP, caeBlock], true);
+        if (hits.length > 0) {
+          tag3d.style.left = x + 'px';
+          tag3d.style.top = y + 'px';
+          tag3d.style.display = 'block';
+          const p = hits[0].point;
+          const dist = Math.sqrt(p.x * p.x + p.z * p.z);
+          const t = dist < 4 ? 4383.7 * Math.exp(-dist * 0.4) : 25.0;
+          tag3d.innerText = `探針實測溫度: ${t.toFixed(1)} °C`;
+        }
+        return;
+      }
+
+      // 檢查是否點擊機台原位 3D 旋鈕與手輪
+      const intersects = raycaster.intersectObjects(raycastInteractables, false);
+      if (intersects.length > 0) {
+        const hitObj = intersects[0].object;
+        const u = hitObj.userData;
+
+        if (u.type === "focusKnob") {
+          // 旋轉調焦手輪
+          focusKnob.rotation.x += Math.PI / 4;
+          focusOffset = (focusOffset === 0.0) ? 0.6 : 0.0; // 切換聚焦 / 散焦
+          lensGroup.position.y = focusOffset === 0.0 ? 14 : 16;
+          computePhysicsAndCAE();
+        } else if (u.type === "pwrKnob") {
+          // 旋轉雷射功率旋鈕
+          pwrKnob.rotation.z += Math.PI / 6;
+          currentPower = currentPower >= 2.5 ? 0.6 : currentPower + 0.3; // 循環功率
+          computePhysicsAndCAE();
+        } else if (u.type === "shutterBtn") {
+          // 實體雷射快門
+          toggleLaserFire();
+        } else if (u.type === "vrNosepiece") {
+          // 轉動物鏡切換倍率
+          nosepiece.rotation.y += Math.PI / 3;
+          drawVRScreen();
+          vrTexture.needsUpdate = true;
+        } else if (u.type === "semDrawer") {
+          // SEM 樣品艙抽屜進樣
+          semDrawer.position.z = semDrawer.position.z === 5 ? 2 : 5;
+          drawSEMScreen();
+          semTexture.needsUpdate = true;
+        } else if (u.type === "ramanHead") {
+          // 拉曼激發光路位置切換
+          ramanLaserHead.position.x = (ramanLaserHead.position.x === 0) ? 3 : 0;
+          drawRamanScreen();
+          ramanTexture.needsUpdate = true;
+        }
+      }
+    }
+    window.addEventListener('pointerdown', onPointerDown);
+
+    /* =========================================================
+       5. 工位運鏡切換與相機控制 (Camera Station Tweening)
+       ========================================================= */
+    const stations = {
+      1: { pos: new THREE.Vector3(-55, 18, 32), target: new THREE.Vector3(-55, 4, 0), title: "工位 1: FSMM 飛秒加工機 (實體層)", desc: "可直接點擊調焦手輪(橘色)、功率旋鈕(藍色)與快門按鈕(紅色)[cite: 258, 259]。" },
+      2: { pos: new THREE.Vector3(-25, 18, 26), target: new THREE.Vector3(-25, 6, 0), title: "工位 2: KEYENCE VR-6200 3D 輪廓儀", desc: "點擊物鏡轉盤切換量測倍率，查看即時 3D 彩色高度圖與孔壁角度換算[cite: 221, 260]。" },
+      3: { pos: new THREE.Vector3(5, 18, 26), target: new THREE.Vector3(5, 6, 0), title: "工位 3: Phenom XL SEM / EDS 電鏡", desc: "點擊樣品抽屜抽氣進樣，螢幕顯示 3600x 灰階孔壁與 EDS 元素比例。" },
+      4: { pos: new THREE.Vector3(35, 18, 26), target: new THREE.Vector3(35, 6, 0), title: "工位 4: 顯微拉曼光譜檢測台", desc: "點擊激發雷射頭切換量測點，比對 477 與 1096 cm⁻¹ 排除結晶化[cite: 228, 230, 231]。" },
+      5: { pos: new THREE.Vector3(65, 20, 28), target: new THREE.Vector3(65, 8, 4), title: "工位 5: ABAQUS CAE 數位雙生終端", desc: "全息網格呈現 10 µm 局部加密、暫態溫度場與 280.9 MPa 最大主應力[cite: 177, 194, 203]。" }
+    };
+
+    let targetCamPos = camera.position.clone();
+    let targetLookAt = controls.target.clone();
+
+    function switchStation(id) {
+      document.querySelectorAll('.st-btn').forEach((b, i) => b.classList.toggle('active', i + 1 === id));
+      const s = stations[id];
+      targetCamPos.copy(s.pos);
+      targetLookAt.copy(s.target);
+      document.getElementById('hud-st-title').innerText = s.title;
+      document.getElementById('hud-st-desc').innerText = s.desc;
+    }
+
+    function resetCurrentView() {
+      camera.position.set(-55, 18, 32);
+      controls.target.set(-55, 4, 0);
+    }
+
+    /* =========================================================
+       6. 輔助工具開關 (快門、探針、剖切、抽屜)
+       ========================================================= */
+    function toggleLaserFire() {
       isFiring = !isFiring;
-      laserBeamP.visible = isFiring;
-      pSystem.visible = isFiring;
+      laserBeam.visible = isFiring;
+      plasmaParticles.visible = isFiring;
       document.getElementById('btn-fire').classList.toggle('active', isFiring);
     }
 
-    function toggleClip() {
-      isClipping = !isClipping;
-      rendererP.localClippingEnabled = isClipping;
-      rendererD.localClippingEnabled = isClipping;
-      document.getElementById('btn-clip').classList.toggle('active', isClipping);
+    function toggleThermalProbe() {
+      isProbeTool = !isProbeTool;
+      document.getElementById('btn-probe').classList.toggle('active', isProbeTool);
+      if (!isProbeTool) tag3d.style.display = 'none';
     }
 
-    function resetViews() {
-      cameraP.position.set(50, 40, 65);
-      controlsP.target.set(0, -4, 0);
-      cameraD.position.copy(cameraP.position);
-      controlsD.target.copy(controlsP.target);
+    function toggleSlicingTool() {
+      isSlicingTool = !isSlicingTool;
+      renderer.localClippingEnabled = isSlicingTool;
+      document.getElementById('btn-slice').classList.toggle('active', isSlicingTool);
     }
 
-    function setBenchmark() {
-      pavgSlider.value = 1.2;
-      freqSlider.value = 500;
-      speedSlider.value = 25;
-      etaSlider.value = 0.30;
-      alphaSlider.value = 3.0;
-      sliceSlider.value = 50;
-      refreshDashboard();
+    function toggleDrawer() {
+      document.getElementById('sideDrawer').classList.toggle('open');
     }
 
-    // 視窗縮放
+    function triggerAutoCalibration() {
+      currentPower = 1.2;
+      focusOffset = 0.0;
+      lensGroup.position.y = 14;
+      drillDepthRatio = 1.0;
+      computePhysicsAndCAE();
+      switchStation(5); // 自動運鏡至雙生工作站查看成果
+    }
+
+    // 視窗自適應
     window.addEventListener('resize', () => {
-      const wP = pContainer.clientWidth, hP = pContainer.clientHeight;
-      cameraP.aspect = wP / hP;
-      cameraP.updateProjectionMatrix();
-      rendererP.setSize(wP, hP);
-
-      const wD = dContainer.clientWidth, hD = dContainer.clientHeight;
-      cameraD.aspect = wD / hD;
-      cameraD.updateProjectionMatrix();
-      rendererD.setSize(wD, hD);
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
     });
 
-    // 動畫渲染循環
+    // 渲染與動力學動畫循環
     const clock = new THREE.Clock();
     function animate() {
       requestAnimationFrame(animate);
-      controlsP.update();
-      controlsD.update();
+
+      // 平滑運鏡補間 (Smooth Camera Tweening)
+      camera.position.lerp(targetCamPos, 0.06);
+      controls.target.lerp(targetLookAt, 0.06);
+      controls.update();
 
       const dt = clock.getDelta();
 
-      if (isFiring) {
-        const pos = pSystem.geometry.attributes.position.array;
-        for (let i = 0; i < pCount; i++) {
-          pVels[i].life -= dt * 2.8;
-          if (pVels[i].life <= 0) {
-            pos[i * 3] = 0; pos[i * 3 + 1] = 0; pos[i * 3 + 2] = 0;
-            pVels[i].life = 1.0;
-          } else {
-            pos[i * 3] += pVels[i].x;
-            pos[i * 3 + 1] += pVels[i].y;
-            pos[i * 3 + 2] += pVels[i].z;
-          }
-        }
-        pSystem.geometry.attributes.position.needsUpdate = true;
+      // 模擬雷射逐層氣化下鑽 (非瞬間切穿)
+      if (isFiring && drillDepthRatio < 1.0 && Math.abs(focusOffset) < 0.2) {
+        drillDepthRatio += dt * 0.2; // 5 秒完整演化出盲孔深度
+        computePhysicsAndCAE();
       }
 
-      rendererP.render(sceneP, cameraP);
-      rendererD.render(sceneD, cameraD);
+      // 電漿噴濺微粒子更新
+      if (isFiring && Math.abs(focusOffset) < 0.2) {
+        const pos = plasmaParticles.geometry.attributes.position.array;
+        for (let i = 0; i < pCount; i++) {
+          pVels[i].life -= dt * 2.5;
+          if (pVels[i].life <= 0) {
+            pos[i*3] = 0; pos[i*3+1] = 0; pos[i*3+2] = 0;
+            pVels[i].life = 1.0;
+          } else {
+            pos[i*3] += pVels[i].x; pos[i*3+1] += pVels[i].y; pos[i*3+2] += pVels[i].z;
+          }
+        }
+        plasmaParticles.geometry.attributes.position.needsUpdate = true;
+      }
+
+      renderer.render(scene, camera);
     }
 
-    refreshDashboard();
+    // 啟動初始化
+    computePhysicsAndCAE();
+    switchStation(1);
     animate();
   </script>
 </body>
